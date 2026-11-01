@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Integer, String, Text, Boolean
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.connection import Base
@@ -15,6 +15,14 @@ class Task(Base):
         index=True
     )
 
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+
+    project_id: Mapped[int | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
     title: Mapped[str] = mapped_column(
         String(150),
         nullable=False
@@ -24,6 +32,10 @@ class Task(Base):
         Text,
         nullable=True
     )
+
+    category: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     priority: Mapped[str] = mapped_column(
         String(20),
@@ -35,6 +47,16 @@ class Task(Base):
         Boolean,
         default=False,
         nullable=False
+    )
+
+    status: Mapped[str] = mapped_column(String(20), default="pending", server_default="pending", nullable=False)
+
+    recurrence_rule: Mapped[str] = mapped_column(
+        String(20), default="none", server_default="none", nullable=False
+    )
+
+    parent_task_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     created_at: Mapped[datetime] = mapped_column(

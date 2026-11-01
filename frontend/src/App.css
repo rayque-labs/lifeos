@@ -1,0 +1,7 @@
+.app-shell { min-height: 100vh; }
+.sidebar-scroll { scrollbar-width: thin; scrollbar-color: #526a5d transparent; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+@media (max-width: 767px) {
+  .calendar-grid { grid-template-columns: repeat(7, minmax(44px, 1fr)); }
+  .calendar-scroll { overflow-x: auto; }
+}

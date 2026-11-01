@@ -1,32 +1,39 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "sqlite:///./lifeos.db"
+from app.core.config import DATABASE_URL, SQL_ECHO, is_sqlite_url
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+_engine_options = {"echo": SQL_ECHO, "pool_pre_ping": True}
+if is_sqlite_url(DATABASE_URL):
+    _engine_options["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(DATABASE_URL, **_engine_options)
+
+
+def configure_sqlite_foreign_keys(target_engine) -> None:
+    def enable_foreign_keys(connection, _record) -> None:
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    event.listen(target_engine, "connect", enable_foreign_keys)
+
+
+if is_sqlite_url(DATABASE_URL):
+    configure_sqlite_foreign_keys(engine)
 
 SessionLocal = sessionmaker(
     bind=engine,
     autocommit=False,
-    autoflush=False
+    autoflush=False,
+    expire_on_commit=False,
 )
-
 Base = declarative_base()
 
 
 def get_db():
     db = SessionLocal()
-
     try:
         yield db
     finally:
         db.close()
-
-
-def create_tables():
-    from app.models.task import Task
-
-    Base.metadata.create_all(bind=engine)

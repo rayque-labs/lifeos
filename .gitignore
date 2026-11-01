@@ -7,3 +7,9 @@ __pycache__/
 *.db
 *.sqlite3
 .DS_Store
+node_modules/
+frontend/dist/
+dist/
+.env.*
+!.env.example
+*.log
