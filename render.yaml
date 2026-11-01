@@ -18,9 +18,9 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        value: https://lifeos-web.onrender.com
+        value: https://lifeos-web-zsg5.onrender.com
       - key: FRONTEND_URL
-        value: https://lifeos-web.onrender.com
+        value: https://lifeos-web-zsg5.onrender.com
 
   - type: web
     name: lifeos-web
@@ -34,7 +34,7 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://lifeos-api.onrender.com
+        value: https://lifeos-api-5kbv.onrender.com
 
 databases:
   - name: lifeos-db
