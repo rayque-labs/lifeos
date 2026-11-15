@@ -1,20 +1,36 @@
-# LifeOS local-first migration
+# LifeOS Monolith — Android offline
 
-The new optional `VITE_OFFLINE_MODE=true` feature flag bypasses login and uses a local data adapter for **tasks**, **notes**, **projects** and **habits** (initial implementations). It is **not yet a complete offline app**.
+The Android debug workflow builds with `VITE_OFFLINE_MODE=true`, without an external API. The Android wrapper embeds the React application and all of its JavaScript.
 
-Current implementation:
-- Local user identity, without network authentication.
-- Task, note and project CRUD, plus habit CRUD and basic check-ins, stored in browser localStorage. Habit streak and project progress calculations are not fully migrated.
-- Unsupported modules fail explicitly instead of silently contacting a remote server.
-- The default build remains in online mode to avoid presenting unfinished offline behavior as production-ready.
+## Implemented
 
-Run `VITE_OFFLINE_MODE=true npm run dev` in frontend for incremental testing. Note that the dashboard, projects, habits, calendar, finance and settings API actions still need local adapters. The dashboard is the default route and will show an unsupported-module error in offline mode.
+- Offline CRUD for tasks, notes, projects, habits, calendar events, finance accounts, categories and transactions.
+- Dashboard assembled from local records.
+- Project progress from linked tasks; basic daily and weekly habit streak calculations.
+- Finance balances, income/expense totals and per-category monthly summaries.
+- Local profile and offline mode without login.
+- JSON backup export/import from Settings.
 
-Before releasing an Android APK:
-1. Implement all remaining module endpoints and aggregation semantics.
-2. Replace temporary localStorage with native SQLite; add migrations and transaction-safe writes.
-3. Provide encrypted or user-controlled export/import and verify backups.
-4. Add Android icon/splash image assets from the approved original image.
-5. Build and test offline on a real Android device, including process termination and restart.
+## Important limitations
 
-Do not treat localStorage as durable production storage for financial data. Avoid switching the Android workflow to offline mode until all modules work.
+- **Temporary storage:** records currently use WebView localStorage, **not native SQLite**. Do not treat it as a robust database for irreplaceable financial records.
+- **Backups are unencrypted** JSON. Store them safely. Import replaces local data; verify backups before relying on them.
+- Local data is stored per app installation; uninstalling or clearing app data may delete it.
+- The APK has not been tested on a physical Android phone.
+- Custom launcher icon and approved splash image are not yet included in the GitHub repository.
+- Recurring tasks, complex calendar edge cases, financial precision and complete backend parity still need validation.
+- This is a debug-signed APK, not a Play Store release.
+
+## Build and download
+
+GitHub Actions → **Android debug APK** → latest successful run → Artifacts → `lifeos-monolith-debug-apk`.
+
+No `LIFEOS_API_URL` variable is required for offline builds.
+
+## Release gates
+
+1. Integrate and test native SQLite with a schema migration strategy and import from temporary storage.
+2. Test every module in airplane mode, across restarts, on a physical Android device.
+3. Include approved launcher and splash assets.
+4. Add integration tests for data consistency and backups.
+5. Configure release signing and versioning.
