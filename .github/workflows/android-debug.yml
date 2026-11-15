@@ -43,8 +43,12 @@ jobs:
       - name: Generate Android project
         run: |
           rm capacitor.config.ts
+          npm pkg set 'dependencies.@capacitor/core=^7' 'dependencies.@capacitor/android=^7' 'dependencies.@capacitor-community/sqlite=^7'
           npx cap add android
           npx cap sync android
+          echo 'Checking native SQLite registration:'
+          cat android/app/src/main/assets/capacitor.plugins.json
+          grep -q 'CapacitorSQLite' android/app/src/main/assets/capacitor.plugins.json || { echo '::error::SQLite native plugin missing from Android registration'; exit 1; }
       - name: Build debug APK
         run: |
           cd android
