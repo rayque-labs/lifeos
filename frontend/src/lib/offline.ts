@@ -35,6 +35,32 @@ function defaults(collection: Collection, input: Record<string, unknown>, id: nu
   const now = new Date().toISOString()
   return { id, title: '', content: '', category: null, tags: [], pinned: false, created_at: now, updated_at: now, ...input }
 }
+function localDate(date: Date): string {
+  const year = date.getFullYear()
+  return year + '-' + String(date.getMonth()+1).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0')
+}
+function habitStats(logs: Array<{logged_on:string}>, frequency: unknown) {
+  const dates = new Set(logs.map(log=>log.logged_on))
+  const today = new Date(), todayKey = localDate(today)
+  const days30 = new Date(today);days30.setDate(days30.getDate()-29)
+  let streak = 0
+  if (frequency === 'weekly') {
+    const startOfWeek = (date: Date) => {
+      const d = new Date(date);d.setDate(d.getDate()-((d.getDay()+6)%7))
+      return localDate(d)
+    }
+    const weeks = new Set([...dates].map(value=>startOfWeek(new Date(value+'T12:00:00'))))
+    const cursor = new Date(today)
+    if (!weeks.has(startOfWeek(cursor))) cursor.setDate(cursor.getDate()-7)
+    while (weeks.has(startOfWeek(cursor)) && streak < 520) { streak++;cursor.setDate(cursor.getDate()-7) }
+  } else {
+    const cursor = new Date(today)
+    if (!dates.has(localDate(cursor))) cursor.setDate(cursor.getDate()-1)
+    while (dates.has(localDate(cursor)) && streak < 36500) { streak++;cursor.setDate(cursor.getDate()-1) }
+  }
+  const logCount30 = [...dates].filter(date=>date>=localDate(days30) && date<=todayKey).length
+  return { checked_in_today: dates.has(todayKey), current_streak: streak, log_count_30_days: logCount30, consistency_percentage: Math.round(logCount30/30*100) }
+}
 function monthSummary(month: string) {
   const categories = read('categories')
   const transactions = read('transactions').filter(row => String(row.occurred_on).startsWith(month))
@@ -67,7 +93,7 @@ function enrichedProjects(): RecordValue[] {
   })
 }
 function dashboard() {
-  const now = new Date(), today = now.toISOString().slice(0,10)
+  const now = new Date(), today = localDate(now)
   const tasks = read('tasks'), projects = enrichedProjects().filter(p => p.status === 'active')
   const events = read('events').filter(e => String(e.starts_at) >= now.toISOString() && new Date(String(e.starts_at)).getTime() < now.getTime() + 7*86400000)
   const habits = offlineRequest<RecordValue[]>('/habits/?active=true', 'GET')
@@ -110,7 +136,7 @@ export function offlineRequest<T>(path: string, method: string, body?: unknown):
     const logs: Array<{ id: number; habit_id: number; logged_on: string }> = JSON.parse(localStorage.getItem(key) || '[]')
     if (method === 'GET') return logs.filter(log => !url.searchParams.get('from_date') || log.logged_on >= url.searchParams.get('from_date')!) as T
     if (method === 'POST') {
-      const date = String((body as { logged_on?: string } | undefined)?.logged_on || new Date().toISOString().slice(0, 10))
+      const date = String((body as { logged_on?: string } | undefined)?.logged_on || localDate(new Date()))
       if (!read('habits').some(row => row.id === habitId)) throw new Error('Hábito não encontrado.')
       const existing = logs.find(log => log.logged_on === date)
       if (existing) return existing as T
@@ -126,9 +152,7 @@ export function offlineRequest<T>(path: string, method: string, body?: unknown):
     if (id !== null) return rows.find(row => row.id === id) as T
     let result: RecordValue[] = collection === 'projects' ? enrichedProjects() : collection === 'accounts' ? accountRows() : collection === 'habits' ? rows.map(row => {
       const logs: Array<{ logged_on: string }> = JSON.parse(localStorage.getItem(prefix + 'habit-logs:' + row.id) || '[]')
-      const today = new Date().toISOString().slice(0, 10)
-      const days30 = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10)
-      return { ...row, checked_in_today: logs.some(log => log.logged_on === today), log_count_30_days: logs.filter(log => log.logged_on >= days30).length }
+      return { ...row, ...habitStats(logs,row.frequency) }
     }) : rows
     const search = (url.searchParams.get('search') || url.searchParams.get('q') || '').toLowerCase()
     if (search) result = result.filter(row => String(row.title || '').toLowerCase().includes(search))
