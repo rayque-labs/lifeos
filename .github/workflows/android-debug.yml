@@ -2,11 +2,6 @@ name: Android debug APK
 
 on:
   workflow_dispatch:
-  push:
-    branches: ['design/monolith-v2']
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/android-debug.yml'
 
 permissions:
   contents: read
