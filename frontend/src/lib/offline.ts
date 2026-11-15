@@ -50,7 +50,7 @@ export function offlineRequest<T>(path: string, method: string, body?: unknown):
   const index = rows.findIndex(row => row.id === id)
   if (index < 0) throw new Error('Registro não encontrado.')
   if (method === 'PATCH' || method === 'PUT') {
-    const updated = { ...rows[index], ...payload, id: rows[index].id }
+    const updated: RecordValue = { ...rows[index], ...payload, id: rows[index].id }
     if (collection === 'tasks') {
       if ('completed' in payload) updated.status = payload.completed ? 'completed' : 'pending'
       else if ('status' in payload) updated.completed = payload.status === 'completed'
