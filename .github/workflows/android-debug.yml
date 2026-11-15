@@ -1,0 +1,56 @@
+name: Android debug APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['design/monolith-v2']
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/android-debug.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Install Capacitor build tools
+        run: npm install --no-save --package-lock=false @capacitor/core@^7 @capacitor/cli@^7 @capacitor/android@^7
+      - name: Build web app
+        env:
+          VITE_API_URL: ${{ vars.LIFEOS_API_URL }}
+        run: |
+          if [ -z "$VITE_API_URL" ]; then
+            echo "::error::Set repository variable LIFEOS_API_URL to the HTTPS URL of the deployed LifeOS API."
+            exit 1
+          fi
+          npm run build
+      - name: Generate Android project
+        run: npx cap add android
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lifeos-monolith-debug-apk
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
