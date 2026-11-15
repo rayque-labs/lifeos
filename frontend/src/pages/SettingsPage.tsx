@@ -1,3 +1,4 @@
+import { ProfilePhotoEditor } from '../components/Personalization'
 import { useState, type FormEvent } from 'react'
 import { KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -34,6 +35,7 @@ export function SettingsPage() {
     <PageHeading title="Configurações" description="Seu perfil e as opções de acesso da sua conta." />
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
     {message && <p role="status" className="mb-4 rounded-xl border border-[#d8e9cc] bg-[#f0f7e9] px-3.5 py-2.5 text-sm text-[#527544]">{message}</p>}
+    <ProfilePhotoEditor />
     <div className="grid gap-5 xl:grid-cols-[1.1fr_.9fr]">
       <Card><div className="mb-5 flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eaf0e7] text-[#648063]"><UserRound size={18} /></span><div><h2 className="font-semibold text-[#30483a]">Perfil</h2><p className="mt-1 text-xs text-[#8c9990]">Informações básicas da sua conta.</p></div></div>
         <form onSubmit={saveProfile} className="space-y-4"><Field label="Nome"><Input required minLength={1} maxLength={120} value={name} onChange={event => setName(event.target.value)} autoComplete="name" /></Field><Field label="E-mail"><div className="relative"><Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#99a59c]" /><Input className="pl-9" value={user?.email || ''} readOnly aria-readonly="true" /></div></Field><div className="flex items-center gap-2 text-xs text-[#7b897f]"><ShieldCheck size={15} className="text-[#6e9460]" />Conta pessoal protegida por senha.</div><Button type="submit" busy={busy}>Salvar perfil</Button></form>
