@@ -1,3 +1,4 @@
+import { SectionBanner } from '../components/Personalization'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Activity, CalendarCheck2, Check, Flame, History, Pencil, Plus, Sparkles, Target, Trash2, X } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, ErrorMessage, Field, Input, LoadingState, PageHeading, Select, Textarea } from '../components/ui'
@@ -59,6 +60,7 @@ export function HabitsPage() {
   }
 
   return <>
+    <SectionBanner section="habits" />
     <PageHeading title="Hábitos" description="Construa consistência com pequenos registros ao longo do tempo." action={<Button onClick={() => { setDraft(blank); setEditing(null); setFormOpen(true) }}><Plus size={16} />Novo hábito</Button>} />
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
     {formOpen && <Card className="mb-5 !border-[#dce7d8]"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-semibold text-[#30483a]">{editing ? 'Editar hábito' : 'Criar hábito'}</h2><p className="mt-1 text-xs text-[#859187]">A sequência e a consistência são calculadas a partir dos registros.</p></div><button aria-label="Fechar" onClick={cancel} className="rounded-lg p-1.5 text-[#859187] hover:bg-[#f0f3ee]"><X size={18} /></button></div>
