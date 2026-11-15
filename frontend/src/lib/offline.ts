@@ -48,7 +48,7 @@ function monthSummary(month: string) {
       categories: [] as Array<{category:string;kind:string;total:string}> }
   }) }
 }
-function enrichedProjects() {
+function enrichedProjects(): RecordValue[] {
   const tasks = read('tasks')
   return read('projects').map(project => {
     const linked = tasks.filter(task => Number(task.project_id) === project.id)
@@ -137,7 +137,7 @@ export function offlineRequest<T>(path: string, method: string, body?: unknown):
   }
   if (method === 'POST' && id === null) {
     const nextId = rows.reduce((max, row) => Math.max(max,row.id),0) + 1
-    const created = defaults(collection,payload,nextId)
+    const created = defaults(bucket,payload,nextId)
     write(bucket,[...rows,created]); return created as T
   }
   const index = rows.findIndex(row => row.id === id)
@@ -150,6 +150,6 @@ export function offlineRequest<T>(path: string, method: string, body?: unknown):
     } else updated.updated_at = new Date().toISOString()
     rows[index] = updated;write(bucket,rows);return updated as T
   }
-  if (method === 'DELETE') { rows.splice(index,1);write(collection,rows);return undefined as T }
+  if (method === 'DELETE') { rows.splice(index,1);write(bucket,rows);return undefined as T }
   throw new Error('Operação local não suportada.')
 }
