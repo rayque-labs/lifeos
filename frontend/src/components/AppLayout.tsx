@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  CalendarDays, CheckSquare2, ChevronRight, CircleDollarSign, Command,
+  CalendarDays, CheckSquare2, Plus, ChevronRight, CircleDollarSign, Command,
   FolderKanban, LayoutDashboard, LogOut, Menu, NotebookPen, Settings2, Sparkles, X,
 } from 'lucide-react'
 import { useAuth } from '../lib/auth'
@@ -30,14 +30,14 @@ export function AppLayout() {
     <aside className={`sidebar-scroll fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col bg-[#203c2e] px-4 py-5 text-white transition-transform md:static md:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex items-center justify-between px-2 pb-8">
         <Link to="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d9f16f] text-[#203c2e]"><Command size={21} /></span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C5FF4A] text-[#101010]"><Command size={21} /></span>
           <span><span className="block text-[17px] font-bold tracking-tight">lifeos</span><span className="text-[10px] uppercase tracking-[.2em] text-[#b6c9ba]">personal system</span></span>
         </Link>
         <button aria-label="Fechar menu" className="rounded-lg p-2 text-[#d5e1d7] hover:bg-white/10 md:hidden" onClick={() => setOpen(false)}><X size={18} /></button>
       </div>
       <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[.18em] text-[#99b09f]">Workspace</p>
       <nav className="sidebar-scroll flex-1 space-y-1 overflow-y-auto">
-        {items.map(({ to, label, icon: Icon, end }) => <NavLink key={to} to={to} end={end} onClick={() => setOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition ${isActive ? 'bg-[#d9f16f] text-[#243b2e] shadow-sm' : 'text-[#d0ddd2] hover:bg-white/[.08] hover:text-white'}`}>
+        {items.map(({ to, label, icon: Icon, end }) => <NavLink key={to} to={to} end={end} onClick={() => setOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition ${isActive ? 'bg-[#C5FF4A] text-[#101010] shadow-sm' : 'text-[#d0ddd2] hover:bg-white/[.08] hover:text-white'}`}>
           <Icon size={17} strokeWidth={1.8} />{label}
         </NavLink>)}
       </nav>
@@ -62,6 +62,13 @@ export function AppLayout() {
         <button onClick={() => navigate('/settings')} aria-label="Configurações" className="rounded-xl p-2 text-[#697a6e] hover:bg-white"><Settings2 size={18} /></button>
       </header>
       <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10 lg:py-9"><Outlet /></div>
+      <nav aria-label="Navegação principal" className="mono-bottom-nav fixed bottom-0 inset-x-0 z-30 grid grid-cols-5 items-center px-2 pb-[env(safe-area-inset-bottom)] pt-2 md:hidden">
+        <NavLink end to="/" className="flex flex-col items-center gap-1 p-2 text-[10px]"><LayoutDashboard size={21}/>Início</NavLink>
+        <NavLink to="/calendar" className="flex flex-col items-center gap-1 p-2 text-[10px]"><CalendarDays size={21}/>Agenda</NavLink>
+        <Link to="/tasks" aria-label="Abrir tarefas" className="mx-auto -mt-5 flex h-13 w-13 items-center justify-center rounded-full bg-[#C5FF4A] text-[#101010] shadow-[0_0_20px_#C5FF4A44]"><Plus size={25}/></Link>
+        <NavLink to="/finance" className="flex flex-col items-center gap-1 p-2 text-[10px]"><CircleDollarSign size={21}/>Finanças</NavLink>
+        <button onClick={() => setOpen(true)} className="flex flex-col items-center gap-1 p-2 text-[10px] text-[#a3a5a9]"><Menu size={21}/>Mais</button>
+      </nav>
       <footer className="px-5 pb-6 text-center text-[11px] text-[#a0aaa2]">LifeOS · Um espaço para organizar o que importa</footer>
     </main>
   </div>
