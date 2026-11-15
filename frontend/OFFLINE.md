@@ -1,10 +1,10 @@
 # LifeOS local-first migration
 
-The new optional `VITE_OFFLINE_MODE=true` feature flag bypasses login and uses a local data adapter for **tasks** and **notes** only. It is **not yet a complete offline app**.
+The new optional `VITE_OFFLINE_MODE=true` feature flag bypasses login and uses a local data adapter for **tasks**, **notes**, **projects** and **habits** (initial implementations). It is **not yet a complete offline app**.
 
 Current implementation:
 - Local user identity, without network authentication.
-- Task and note CRUD stored in browser localStorage.
+- Task, note and project CRUD, plus habit CRUD and basic check-ins, stored in browser localStorage. Habit streak and project progress calculations are not fully migrated.
 - Unsupported modules fail explicitly instead of silently contacting a remote server.
 - The default build remains in online mode to avoid presenting unfinished offline behavior as production-ready.
 
