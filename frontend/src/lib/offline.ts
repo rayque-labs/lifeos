@@ -126,11 +126,13 @@ export function offlineRequest<T>(path: string, method: string, body?: unknown):
       if (value) result = result.filter(row => String(row[filter]) === value)
     }
     if (collection === 'events') {
-      const from = url.searchParams.get('from_date') || url.searchParams.get('start')
-      const to = url.searchParams.get('to_date') || url.searchParams.get('end')
+      const from = url.searchParams.get('starts_after') || url.searchParams.get('from_date') || url.searchParams.get('start')
+      const to = url.searchParams.get('starts_before') || url.searchParams.get('to_date') || url.searchParams.get('end')
       if (from) result = result.filter(r=>String(r.starts_at)>=from)
-      if (to) result = result.filter(r=>String(r.starts_at).slice(0,10)<=to.slice(0,10))
+      if (to) result = result.filter(r=>String(r.starts_at)<=to)
     }
+    if (collection === 'transactions') result = result.slice(0,Number(url.searchParams.get('limit')||100))
+    if (collection === 'tasks' && url.searchParams.get('sort_by') === 'due_at') result = [...result].sort((a,b)=>String(a.due_at||'9999').localeCompare(String(b.due_at||'9999')))
     return result as T
   }
   if (method === 'POST' && id === null) {
