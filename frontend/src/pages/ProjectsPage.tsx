@@ -1,3 +1,4 @@
+import { SectionBanner } from '../components/Personalization'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ArrowUpRight, CalendarDays, FolderKanban, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -42,6 +43,7 @@ export function ProjectsPage() {
   }
 
   return <>
+    <SectionBanner section="projects" />
     <PageHeading title="Projetos" description="Conecte tarefas a objetivos que levam mais de um passo." action={<Button onClick={() => { setDraft(blank); setEditing(null); setFormOpen(true) }}><Plus size={16} />Novo projeto</Button>} />
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
     {formOpen && <Card className="mb-5 !border-[#dce7d8]"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-semibold text-[#30483a]">{editing ? 'Editar projeto' : 'Novo projeto'}</h2><p className="mt-1 text-xs text-[#859187]">O progresso será calculado pelas tarefas vinculadas.</p></div><button aria-label="Fechar" onClick={cancel} className="rounded-lg p-1.5 text-[#859187] hover:bg-[#f0f3ee]"><X size={18} /></button></div>
