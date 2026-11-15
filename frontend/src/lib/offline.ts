@@ -113,7 +113,7 @@ export function offlineRequest<T>(path: string, method: string, body?: unknown):
   const payload = body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : {}
   if (method === 'GET') {
     if (id !== null) return rows.find(row => row.id === id) as T
-    let result = collection === 'projects' ? enrichedProjects() : collection === 'accounts' ? accountRows() : collection === 'habits' ? rows.map(row => {
+    let result: RecordValue[] = collection === 'projects' ? enrichedProjects() : collection === 'accounts' ? accountRows() : collection === 'habits' ? rows.map(row => {
       const logs: Array<{ logged_on: string }> = JSON.parse(localStorage.getItem(prefix + 'habit-logs:' + row.id) || '[]')
       const today = new Date().toISOString().slice(0, 10)
       const days30 = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10)
