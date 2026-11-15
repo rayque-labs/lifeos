@@ -1,3 +1,4 @@
+import { SectionBanner } from '../components/Personalization'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, CheckCircle2, CircleAlert, CircleDollarSign, FolderKanban, ListTodo, RefreshCw, Sparkles } from 'lucide-react'
@@ -34,6 +35,7 @@ export function DashboardPage() {
   ]
 
   return <>
+    <SectionBanner section="dashboard" />
     <PageHeading title={`Bom dia, ${firstName}`} description="Um retrato simples do que está acontecendo na sua vida hoje." action={<Button variant="secondary" onClick={() => void load()}><RefreshCw size={15} />Atualizar</Button>} />
     {error && <div className="mb-5"><ErrorMessage message={error} /></div>}
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
