@@ -17,3 +17,5 @@ button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 ::selection { background: #d8f36a; color: #21372c; }
+
+@import './monolith.css';
