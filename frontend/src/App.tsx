@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useCallback, useState } from 'react'
+import { MonolithSplash } from './components/MonolithSplash'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/auth'
 import { AppLayout } from './components/AppLayout'
@@ -41,5 +42,16 @@ function Router() {
 }
 
 export default function App() {
-  return <BrowserRouter><AuthProvider><Router /></AuthProvider></BrowserRouter>
+  // Play once per tab session. A missing asset must never block app startup.
+  const [intro, setIntro] = useState(() => {
+    try { return sessionStorage.getItem('lifeos:monolith:intro') !== 'done' } catch { return true }
+  })
+  const finishIntro = useCallback(() => {
+    try { sessionStorage.setItem('lifeos:monolith:intro', 'done') } catch { /* storage unavailable */ }
+    setIntro(false)
+  }, [])
+  return <BrowserRouter><AuthProvider>
+    <Router />
+    {intro && <MonolithSplash onComplete={finishIntro} />}
+  </AuthProvider></BrowserRouter>
 }
