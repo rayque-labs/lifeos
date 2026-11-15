@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 
 
 def test_dashboard_aggregates_live_module_data(client):
     now = datetime.now(timezone.utc)
     today = now.date()
     yesterday_due = (now - timedelta(days=2)).isoformat()
-    today_due = (now + timedelta(hours=2)).isoformat()
+    today_due = datetime.combine(today, time.max, tzinfo=timezone.utc).isoformat()
     overdue = client.post("/tasks/", json={"title": "Overdue task", "due_at": yesterday_due}).json()
     due_today = client.post("/tasks/", json={"title": "Today's task", "due_at": today_due}).json()
 
