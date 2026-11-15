@@ -22,6 +22,7 @@ export type Note = {
 export type CalendarEvent = {
   id: number; task_id: number | null; title: string; description: string | null;
   starts_at: string; ends_at: string; all_day: boolean;
+  reminders?: number[]; ringtone?: string; full_screen_alert?: boolean;
 }
 export type Account = { id: number; name: string; currency: string; opening_balance: string; balance: string }
 export type Category = { id: number; name: string; kind: 'income' | 'expense' }
