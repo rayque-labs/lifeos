@@ -1,3 +1,4 @@
+import { ProfilePhoto } from './Personalization'
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -48,7 +49,7 @@ export function AppLayout() {
       <div className="mt-4 border-t border-white/10 pt-3">
         <NavLink to="/settings" onClick={() => setOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium ${isActive ? 'bg-white/10 text-white' : 'text-[#d0ddd2] hover:bg-white/[.08]'}`}><Settings2 size={17} />Configurações</NavLink>
         <div className="mt-3 flex items-center gap-3 rounded-xl px-2 py-2">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#dbe8d9] text-xs font-bold text-[#35513f]">{user?.full_name.split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase()}</span>
+          <ProfilePhoto />
           <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{user?.full_name}</p><p className="truncate text-[10px] text-[#aec1b2]">{user?.email}</p></div>
           <button aria-label="Sair" title="Sair" onClick={leave} className="rounded-lg p-2 text-[#c2d0c5] hover:bg-white/10 hover:text-white"><LogOut size={16} /></button>
         </div>
