@@ -1,3 +1,4 @@
+import { SectionBanner } from '../components/Personalization'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { CalendarClock, Check, Circle, Clock3, ListFilter, Pencil, Plus, RotateCcw, Search, Trash2, X } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, ErrorMessage, Field, Input, LoadingState, PageHeading, Select, Textarea } from '../components/ui'
@@ -65,6 +66,7 @@ export function TasksPage() {
 
   const pending = tasks.filter(task => task.status !== 'completed').length
   return <>
+    <SectionBanner section="tasks" />
     <PageHeading title="Tarefas" description={`${pending} tarefa(s) em aberto nesta visualização.`} action={<Button onClick={() => { setDraft(blankDraft); setEditing(null); setFormOpen(value => !value) }}><Plus size={16} />Nova tarefa</Button>} />
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
     {formOpen && <Card className="mb-5 !border-[#dce7d8]">
