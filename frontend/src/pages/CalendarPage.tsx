@@ -1,3 +1,4 @@
+import { SectionBanner } from '../components/Personalization'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, Link2, Plus, Trash2, X } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, ErrorMessage, Field, Input, LoadingState, PageHeading, Select, Textarea } from '../components/ui'
@@ -77,6 +78,7 @@ export function CalendarPage() {
     : `${new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short' }).format(visibleStart)} – ${new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' }).format(addDays(visibleEnd, -1))}`
 
   return <>
+    <SectionBanner section="calendar" />
     <PageHeading title="Calendário" description="Compromissos e tarefas com horário, em uma agenda sua." action={<Button onClick={() => openNew(cursor)}><Plus size={16} />Novo evento</Button>} />
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
     {formOpen && <Card className="mb-5 !border-[#dce7d8]"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-semibold text-[#30483a]">{editing ? 'Editar compromisso' : 'Novo compromisso'}</h2><p className="mt-1 text-xs text-[#859187]">Datas enviadas com o fuso horário do seu dispositivo.</p></div><button aria-label="Fechar" onClick={cancel} className="rounded-lg p-1.5 text-[#859187] hover:bg-[#f0f3ee]"><X size={18} /></button></div>
