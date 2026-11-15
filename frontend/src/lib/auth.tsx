@@ -13,12 +13,18 @@ const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const offline = import.meta.env.VITE_OFFLINE_MODE === 'true'
-  const localUser: User = { id: 1, email: 'local@lifeos.invalid', full_name: 'Meu LifeOS' }
-  const [user, setUser] = useState<User | null>(offline ? localUser : null)
+  const localUser = (): User => {
+    try {
+      const value = JSON.parse(localStorage.getItem('lifeos:offline:v1:profile') || 'null') as User | null
+      if (value && typeof value.full_name === 'string') return value
+    } catch { /* use local default */ }
+    return { id: 1, email: 'local@lifeos.invalid', full_name: 'Meu LifeOS' }
+  }
+  const [user, setUser] = useState<User | null>(offline ? localUser() : null)
   const [loading, setLoading] = useState(!offline)
 
   const clear = () => { tokenStore.clear(); setUser(null); setLoading(false) }
-  const refreshUser = async () => { if (offline) { setUser(localUser); return }; setUser(await get<User>('/auth/me')) }
+  const refreshUser = async () => { if (offline) { setUser(localUser()); return }; setUser(await get<User>('/auth/me')) }
 
   useEffect(() => {
     const onUnauthorized = () => clear()
