@@ -1,0 +1,8 @@
+{
+  "appId": "com.rayquelabs.lifeos",
+  "appName": "LifeOS",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#101010"
+  }
+}
