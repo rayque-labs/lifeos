@@ -1,3 +1,4 @@
+import { SectionBanner } from '../components/Personalization'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ArrowDownRight, ArrowUpRight, Landmark, Plus, Tag, Trash2, TrendingUp, Wallet } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -90,6 +91,7 @@ export function FinancePage() {
   const table = useMemo(() => transactions.map(transaction => ({ ...transaction, account: accounts.find(account => account.id === transaction.account_id), category: categories.find(category => category.id === transaction.category_id) })), [transactions, accounts, categories])
   if (loading && !summary) return <LoadingState />
   return <>
+    <SectionBanner section="finance" />
     <PageHeading title="Finanças" description="Receitas, despesas e saldos sem misturar moedas." action={<div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => setShowCategory(value => !value)}><Tag size={15} />Categoria</Button><Button variant="secondary" onClick={() => setShowAccount(value => !value)}><Landmark size={15} />Conta</Button><Button onClick={() => { setDraft({ ...blankTx(), accountId: accounts[0] ? String(accounts[0].id) : '' }); setEditing(null); setShowTransaction(value => !value) }} disabled={!accounts.length}><Plus size={16} />Transação</Button></div>} />
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
     {(showAccount || showCategory || showTransaction) && <Card className="mb-5 !border-[#dce7d8]">
