@@ -1,3 +1,4 @@
+import { offlineRequest } from './offline'
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 const TOKEN_KEY = 'lifeos.access-token.v1'
 
@@ -17,6 +18,11 @@ export const tokenStore = {
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  if (import.meta.env.VITE_OFFLINE_MODE === 'true') {
+    const method = (options.method || 'GET').toUpperCase()
+    const body = typeof options.body === 'string' ? JSON.parse(options.body) : undefined
+    return offlineRequest<T>(path, method, body)
+  }
   const headers = new Headers(options.headers)
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json')
   const token = tokenStore.get()
