@@ -41,7 +41,9 @@ jobs:
           VITE_OFFLINE_MODE: 'true'
         run: npm run build
       - name: Generate Android project
-        run: npx cap add android
+        run: |
+          rm capacitor.config.ts
+          npx cap add android
       - name: Build debug APK
         run: |
           cd android
