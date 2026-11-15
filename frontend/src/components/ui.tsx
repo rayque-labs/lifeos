@@ -5,17 +5,17 @@ export function Button({ children, variant = 'primary', busy, className = '', ..
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; busy?: boolean
 }) {
   const styles = {
-    primary: 'bg-[#244535] text-white hover:bg-[#315b45] focus:ring-[#b6db74]',
-    secondary: 'bg-[#e9eee6] text-[#244535] hover:bg-[#dfe8dc] focus:ring-[#b6db74]',
-    ghost: 'bg-transparent text-[#52665a] hover:bg-[#eff2ed] focus:ring-[#b6db74]',
-    danger: 'bg-[#fff0ed] text-[#a44233] hover:bg-[#ffe2dd] focus:ring-[#f7b0a4]',
+    primary: 'bg-[#C5FF4A] text-[#101010] hover:bg-[#d8ff8c] focus:ring-[#C5FF4A]',
+    secondary: 'bg-[#292b2d] text-[#F1F1ED] hover:bg-[#383c3d] focus:ring-[#C5FF4A]',
+    ghost: 'bg-transparent text-[#F1F1ED] hover:bg-[#303233] focus:ring-[#C5FF4A]',
+    danger: 'bg-[#3a2025] text-[#FF4D57] hover:bg-[#51272e] focus:ring-[#FF4D57]',
   }
   return <button {...props} disabled={props.disabled || busy} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-55 ${styles[variant]} ${className}`}>
     {busy && <LoaderCircle size={16} className="animate-spin" />}{children}
   </button>
 }
 
-const fieldClass = 'w-full rounded-xl border border-[#dfe5dc] bg-white px-3.5 py-2.5 text-sm text-[#20352a] outline-none transition placeholder:text-[#a1aca3] focus:border-[#799c78] focus:ring-2 focus:ring-[#dce8d5]'
+const fieldClass = 'w-full rounded-xl border border-[#555B66] bg-[#202024] px-3.5 py-2.5 text-sm text-[#F1F1ED] outline-none transition placeholder:text-[#999ba0] focus:border-[#C5FF4A] focus:ring-2 focus:ring-[#C5FF4A]/30'
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${fieldClass} ${props.className || ''}`} />
 }
