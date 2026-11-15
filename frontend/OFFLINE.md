@@ -13,7 +13,7 @@ The Android debug workflow builds with `VITE_OFFLINE_MODE=true`, without an exte
 
 ## Important limitations
 
-- **Temporary storage:** records currently use WebView localStorage, **not native SQLite**. Do not treat it as a robust database for irreplaceable financial records.
+- **Native SQLite integration under validation:** the Android build now includes a SQLite key/value bridge. It imports existing localStorage data on first launch and mirrors subsequent writes. Physical-device persistence and migration have not yet been tested; do not treat it as production-grade financial storage. The browser development build still uses localStorage.
 - **Backups are unencrypted** JSON. Store them safely. Import replaces local data; verify backups before relying on them.
 - Local data is stored per app installation; uninstalling or clearing app data may delete it.
 - The APK has not been tested on a physical Android phone.
@@ -29,7 +29,7 @@ No `LIFEOS_API_URL` variable is required for offline builds.
 
 ## Release gates
 
-1. Integrate and test native SQLite with a schema migration strategy and import from temporary storage.
+1. Validate the native SQLite bridge on a physical device, including migration from the previous localStorage-only APK, transactions and app restarts.
 2. Test every module in airplane mode, across restarts, on a physical Android device.
 3. Include approved launcher and splash assets.
 4. Add integration tests for data consistency and backups.
