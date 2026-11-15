@@ -2,6 +2,11 @@ name: Android debug APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: ['design/monolith-v2']
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/android-debug.yml'
 
 permissions:
   contents: read
@@ -31,15 +36,10 @@ jobs:
         run: npm ci
       - name: Install Capacitor build tools
         run: npm install --no-save --package-lock=false @capacitor/core@^7 @capacitor/cli@^7 @capacitor/android@^7
-      - name: Build web app
+      - name: Build offline web app
         env:
-          VITE_API_URL: ${{ vars.LIFEOS_API_URL }}
-        run: |
-          if [ -z "$VITE_API_URL" ]; then
-            echo "::error::Set repository variable LIFEOS_API_URL to the HTTPS URL of the deployed LifeOS API."
-            exit 1
-          fi
-          npm run build
+          VITE_OFFLINE_MODE: 'true'
+        run: npm run build
       - name: Generate Android project
         run: npx cap add android
       - name: Build debug APK
