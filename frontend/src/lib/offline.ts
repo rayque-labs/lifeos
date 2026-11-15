@@ -28,7 +28,7 @@ function defaults(collection: Collection, input: Record<string, unknown>, id: nu
     active: true, current_streak: 0, consistency_percentage: 0,
     log_count_30_days: 0, checked_in_today: false, ...input,
   }
-  if (collection === 'events') return { id, title: '', description: null, task_id: null, starts_at: new Date().toISOString(), ends_at: new Date().toISOString(), all_day: false, ...input }
+  if (collection === 'events') return { id, title: '', description: null, task_id: null, starts_at: new Date().toISOString(), ends_at: new Date().toISOString(), all_day: false, reminders: [0], ringtone: 'classic', full_screen_alert: false, ...input }
   if (collection === 'accounts') return { id, name: '', currency: 'BRL', opening_balance: '0', balance: '0', ...input }
   if (collection === 'categories') return { id, name: '', kind: 'expense', ...input }
   if (collection === 'transactions') return { id, account_id: 0, category_id: null, kind: 'expense', title: '', amount: '0', occurred_on: new Date().toISOString().slice(0,10), description: null, ...input }
