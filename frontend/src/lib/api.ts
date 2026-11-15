@@ -1,3 +1,4 @@
+import { initializeOfflineStorage, persistOfflineStorage } from './native-store'
 import { offlineRequest } from './offline'
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 const TOKEN_KEY = 'lifeos.access-token.v1'
@@ -21,7 +22,10 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (import.meta.env.VITE_OFFLINE_MODE === 'true') {
     const method = (options.method || 'GET').toUpperCase()
     const body = typeof options.body === 'string' ? JSON.parse(options.body) : undefined
-    return offlineRequest<T>(path, method, body)
+    await initializeOfflineStorage()
+    const result = offlineRequest<T>(path, method, body)
+    if (method !== 'GET') await persistOfflineStorage()
+    return result
   }
   const headers = new Headers(options.headers)
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json')
