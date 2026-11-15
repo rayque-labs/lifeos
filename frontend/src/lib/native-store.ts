@@ -50,15 +50,12 @@ export async function persistOfflineStorage(): Promise<void> {
   if (!db) throw new Error('Banco SQLite não inicializado.')
   const snapshot = currentRecords()
   pending = pending.catch(() => undefined).then(async () => {
-    await db.execute('BEGIN TRANSACTION;')
-    try {
-      await db.execute('DELETE FROM kv;')
-      for (const [key, value] of snapshot) await db.run('INSERT INTO kv (key, value) VALUES (?, ?)', [key, value])
-      await db.execute('COMMIT;')
-    } catch (error) {
-      await db.execute('ROLLBACK;')
-      throw error
-    }
+    // Use the plugin's own transaction API; db.run defaults to managing a transaction.
+    // A single executeSet operation avoids nested BEGIN/COMMIT failures on Android.
+    await db.executeSet([
+      { statement: 'DELETE FROM kv;', values: [] },
+      ...snapshot.map(([key, value]) => ({ statement: 'INSERT INTO kv (key, value) VALUES (?, ?);', values: [key, value] })),
+    ], true)
   })
   return pending
 }
