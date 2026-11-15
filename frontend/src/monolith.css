@@ -1,0 +1,25 @@
+/* LifeOS Monolith v2 — visual tokens and semantic feedback */
+:root{color-scheme:dark;--mono-bg:#101010;--mono-surface:#1b1b1b;--mono-muted:#555B66;--mono-accent:#C5FF4A;--mono-text:#F1F1ED;--mono-danger:#FF4D57}
+body{background:var(--mono-bg);color:var(--mono-text)}
+.app-shell{background:var(--mono-bg)!important;color:var(--mono-text)}
+.app-shell aside{background:#151515!important;border-right:1px solid #303036}
+.app-shell main{background:var(--mono-bg)}
+.app-shell header{background:#101010ee!important;border-color:#303036!important}
+.app-shell section,.app-shell article{background:#1b1b1b!important;border-color:#33343a!important;box-shadow:none!important}
+.app-shell [class*="bg-white"],.app-shell [class*="bg-[#f"],.app-shell [class*="bg-[#e"]{background-color:#242428!important}
+.app-shell [class*="text-[#"]{color:#d1d2d0}
+.app-shell h1,.app-shell h2,.app-shell h3,.app-shell section p[class*="font-semibold"]{color:var(--mono-text)!important}
+.app-shell input,.app-shell textarea,.app-shell select{background:#202024!important;color:var(--mono-text)!important;border-color:#45454a!important}
+.app-shell input::placeholder,.app-shell textarea::placeholder{color:#909098}
+.app-shell a:hover{color:var(--mono-accent)}
+.app-shell :focus-visible{outline:2px solid var(--mono-accent);outline-offset:2px}
+.app-shell .mono-accent{color:var(--mono-accent)!important}
+.app-shell .mono-danger{color:var(--mono-danger)!important}
+.app-shell .mono-success{color:var(--mono-accent)!important}
+.app-shell .mono-progress{background:var(--mono-accent)!important}
+.app-shell .mono-negative{color:var(--mono-danger)!important}
+.app-shell .mono-bottom-nav{background:#151515f5;border-top:1px solid #33343a;backdrop-filter:blur(18px)}
+.app-shell .mono-bottom-nav a[aria-current="page"]{color:var(--mono-accent)}
+.app-shell .mono-bottom-nav a{color:#a3a5a9}
+.app-shell .mono-bottom-nav a:focus-visible{border-radius:12px}
+@media(max-width:767px){.app-shell main{padding-bottom:76px}.app-shell footer{display:none}}
