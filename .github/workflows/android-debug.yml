@@ -35,7 +35,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
       - name: Install Capacitor build tools
-        run: npm install --no-save --package-lock=false @capacitor/core@^7 @capacitor/cli@^7 @capacitor/android@^7
+        run: npm install --no-save --package-lock=false @capacitor/core@^7 @capacitor/cli@^7 @capacitor/android@^7 @capacitor-community/sqlite@^7
       - name: Build offline web app
         env:
           VITE_OFFLINE_MODE: 'true'
@@ -44,6 +44,7 @@ jobs:
         run: |
           rm capacitor.config.ts
           npx cap add android
+          npx cap sync android
       - name: Build debug APK
         run: |
           cd android
