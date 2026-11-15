@@ -1,6 +1,6 @@
 /**
- * Initial offline repository for Tasks and Notes.
- * Temporary browser storage for development; Android SQLite migration follows.
+ * Offline repository for LifeOS modules.
+ * Browser storage is a temporary development backend; native SQLite migration follows.
  * Never silently fall back to a network API in offline mode.
  */
 type RecordValue = Record<string, unknown> & { id: number }
@@ -36,6 +36,7 @@ function defaults(collection: Collection, input: Record<string, unknown>, id: nu
   return { id, title: '', content: '', category: null, tags: [], pinned: false, created_at: now, updated_at: now, ...input }
 }
 function monthSummary(month: string) {
+  const categories = read('categories')
   const transactions = read('transactions').filter(row => String(row.occurred_on).startsWith(month))
   const accounts = read('accounts')
   const currencies = [...new Set(accounts.map(a => String(a.currency)))]
@@ -44,8 +45,17 @@ function monthSummary(month: string) {
     const items = transactions.filter(t => accountIds.has(Number(t.account_id)))
     const sum = (kind: string) => items.filter(t => t.kind === kind).reduce((n,t) => n + Number(t.amount),0)
     const income = sum('income'), expenses = sum('expense')
+    const grouped = new Map<string, { category: string; kind: 'income' | 'expense'; total: number }>()
+    for (const item of items) {
+      const category = categories.find(row => row.id === Number(item.category_id))
+      const name = String(category?.name || 'Sem categoria')
+      const kind = item.kind === 'income' ? 'income' : 'expense'
+      const key = kind + ':' + name
+      const previous = grouped.get(key)
+      grouped.set(key, { category: name, kind, total: (previous?.total || 0) + Number(item.amount) })
+    }
     return { currency, income: income.toFixed(2), expenses: expenses.toFixed(2), net: (income - expenses).toFixed(2),
-      categories: [] as Array<{category:string;kind:string;total:string}> }
+      categories: [...grouped.values()].map(row => ({ ...row, total: row.total.toFixed(2) })) }
   }) }
 }
 function enrichedProjects(): RecordValue[] {
@@ -60,7 +70,7 @@ function dashboard() {
   const now = new Date(), today = now.toISOString().slice(0,10)
   const tasks = read('tasks'), projects = enrichedProjects().filter(p => p.status === 'active')
   const events = read('events').filter(e => String(e.starts_at) >= now.toISOString() && new Date(String(e.starts_at)).getTime() < now.getTime() + 7*86400000)
-  const habits = offlineRequest<RecordValue[]>('/habits/', 'GET')
+  const habits = offlineRequest<RecordValue[]>('/habits/?active=true', 'GET')
   return { generated_at: now.toISOString(), tasks: {
     total: tasks.length, pending: tasks.filter(t=>t.status==='pending').length,
     in_progress: tasks.filter(t=>t.status==='in_progress').length, completed: tasks.filter(t=>t.completed).length,
@@ -101,6 +111,7 @@ export function offlineRequest<T>(path: string, method: string, body?: unknown):
     if (method === 'GET') return logs.filter(log => !url.searchParams.get('from_date') || log.logged_on >= url.searchParams.get('from_date')!) as T
     if (method === 'POST') {
       const date = String((body as { logged_on?: string } | undefined)?.logged_on || new Date().toISOString().slice(0, 10))
+      if (!read('habits').some(row => row.id === habitId)) throw new Error('Hábito não encontrado.')
       const existing = logs.find(log => log.logged_on === date)
       if (existing) return existing as T
       const created = { id: logs.reduce((max, log) => Math.max(max, log.id), 0) + 1, habit_id: habitId, logged_on: date }
@@ -131,11 +142,17 @@ export function offlineRequest<T>(path: string, method: string, body?: unknown):
       if (from) result = result.filter(r=>String(r.starts_at)>=from)
       if (to) result = result.filter(r=>String(r.starts_at)<=to)
     }
-    if (collection === 'transactions') result = result.slice(0,Number(url.searchParams.get('limit')||100))
+    if (collection === 'transactions') result = [...result].sort((a,b)=>String(b.occurred_on).localeCompare(String(a.occurred_on))).slice(0,Number(url.searchParams.get('limit')||100))
     if (collection === 'tasks' && url.searchParams.get('sort_by') === 'due_at') result = [...result].sort((a,b)=>String(a.due_at||'9999').localeCompare(String(b.due_at||'9999')))
     return result as T
   }
   if (method === 'POST' && id === null) {
+    if (collection === 'transactions') {
+      const account = read('accounts').find(row => row.id === Number(payload.account_id))
+      if (!account) throw new Error('Selecione uma conta existente.')
+      if (!Number.isFinite(Number(payload.amount)) || Number(payload.amount) <= 0) throw new Error('O valor deve ser maior que zero.')
+      if (payload.category_id != null && !read('categories').some(row => row.id === Number(payload.category_id))) throw new Error('Categoria inválida.')
+    }
     const nextId = rows.reduce((max, row) => Math.max(max,row.id),0) + 1
     const created = defaults(bucket,payload,nextId)
     write(bucket,[...rows,created]); return created as T
@@ -144,12 +161,26 @@ export function offlineRequest<T>(path: string, method: string, body?: unknown):
   if (index < 0) throw new Error('Registro não encontrado.')
   if (method === 'PATCH' || method === 'PUT') {
     const updated: RecordValue = { ...rows[index], ...payload, id: rows[index].id }
+    if (collection === 'transactions') {
+      const account = read('accounts').find(row => row.id === Number(updated.account_id))
+      if (!account) throw new Error('Conta inválida.')
+      if (!Number.isFinite(Number(updated.amount)) || Number(updated.amount) <= 0) throw new Error('O valor deve ser maior que zero.')
+    }
     if (collection === 'tasks') {
       if ('completed' in payload) updated.status = payload.completed ? 'completed' : 'pending'
       else if ('status' in payload) updated.completed = payload.status === 'completed'
     } else updated.updated_at = new Date().toISOString()
     rows[index] = updated;write(bucket,rows);return updated as T
   }
-  if (method === 'DELETE') { rows.splice(index,1);write(bucket,rows);return undefined as T }
+  if (method === 'DELETE') {
+    if (collection === 'categories' && read('transactions').some(row=>Number(row.category_id)===id)) throw new Error('Esta categoria está vinculada a transações.')
+    if (collection === 'accounts' && read('transactions').some(row=>Number(row.account_id)===id)) throw new Error('Esta conta está vinculada a transações.')
+    if (collection === 'projects') {
+      const tasks = read('tasks').map(row=>Number(row.project_id)===id?{...row,project_id:null}:row)
+      write('tasks',tasks)
+    }
+    if (collection === 'habits') localStorage.removeItem(prefix+'habit-logs:'+id)
+    rows.splice(index,1);write(bucket,rows);return undefined as T
+  }
   throw new Error('Operação local não suportada.')
 }
