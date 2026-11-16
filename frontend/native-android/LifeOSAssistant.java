@@ -5,11 +5,13 @@ import android.app.Activity;
 import android.app.role.RoleManager;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.media.projection.MediaProjectionManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.ResultReceiver;
 import android.provider.Settings;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
@@ -151,9 +153,68 @@ public class LifeOSAssistant extends Plugin {
         return null;
     }
 
+    private boolean screenReading;
+
     @PluginMethod
     public void inspectScreen(PluginCall call) {
-        call.reject("A leitura de telas de outros aplicativos está indisponível nesta versão.");
+        Activity activity = getActivity();
+        activity.runOnUiThread(() -> {
+            if (screenReading) { call.reject("Já há uma leitura de tela em andamento."); return; }
+            MediaProjectionManager manager = activity.getSystemService(MediaProjectionManager.class);
+            if (manager == null || activity.getSystemService(android.app.KeyguardManager.class).isDeviceLocked()) {
+                call.reject("Desbloqueie o aparelho para ler a tela.");
+                return;
+            }
+            try {
+                screenReading = true;
+                startActivityForResult(call, manager.createScreenCaptureIntent(), "screenPermission");
+            } catch (RuntimeException error) {
+                screenReading = false;
+                call.reject("Não consegui abrir a confirmação de captura do Android.");
+            }
+        });
+    }
+
+    @ActivityCallback
+    private void screenPermission(PluginCall call, ActivityResult authorization) {
+        if (call == null) { screenReading = false; return; }
+        if (authorization.getResultCode() != Activity.RESULT_OK || authorization.getData() == null) {
+            screenReading = false;
+            call.reject("Você cancelou o compartilhamento da tela.");
+            return;
+        }
+        Activity activity = getActivity();
+        float previousAlpha = activity.getWindow().getAttributes().alpha;
+        if (activity instanceof AssistantConversationActivity) {
+            android.view.WindowManager.LayoutParams params = activity.getWindow().getAttributes();
+            params.alpha = 0f;
+            activity.getWindow().setAttributes(params);
+        }
+        ResultReceiver receiver = new ResultReceiver(new Handler(Looper.getMainLooper())) {
+            @Override protected void onReceiveResult(int code, Bundle data) {
+                restoreScreenPanel(activity, previousAlpha);
+                if (code == Activity.RESULT_OK) call.resolve(new JSObject().put("summary", data.getString("text")));
+                else call.reject(data.getString("error", "Não consegui ler a tela."));
+            }
+        };
+        Intent request = new Intent(activity, ScreenReadingService.class)
+            .putExtra("permission", authorization.getData())
+            .putExtra("receiver", receiver);
+        try {
+            if (Build.VERSION.SDK_INT >= 26) activity.startForegroundService(request);
+            else activity.startService(request);
+        } catch (RuntimeException error) {
+            restoreScreenPanel(activity, previousAlpha);
+            call.reject("O Android não permitiu iniciar a leitura. Abra a Toph e tente novamente.");
+        }
+    }
+
+    private void restoreScreenPanel(Activity activity, float alpha) {
+        screenReading = false;
+        if (activity.isDestroyed() || !(activity instanceof AssistantConversationActivity)) return;
+        android.view.WindowManager.LayoutParams params = activity.getWindow().getAttributes();
+        params.alpha = alpha;
+        activity.getWindow().setAttributes(params);
     }
 
     @PluginMethod

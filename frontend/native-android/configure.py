@@ -53,7 +53,7 @@ service = update_element(app, "service", ".AssistantOverlayService",
 update_element(service, "property", "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE",
     value="User-enabled draggable digital assistant over other Android applications")
 
-for permission in ("SYSTEM_ALERT_WINDOW", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_SPECIAL_USE", "RECORD_AUDIO"):
+for permission in ("SYSTEM_ALERT_WINDOW", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_SPECIAL_USE", "FOREGROUND_SERVICE_MEDIA_PROJECTION", "RECORD_AUDIO"):
     update_element(base, "uses-permission", f"android.permission.{permission}")
 
 queries = base.find("queries")
@@ -62,6 +62,8 @@ if queries is None:
 for action in ("android.intent.action.TTS_SERVICE", "android.speech.RecognitionService"):
     if queries.find(f"intent/action[@{{{ANDROID}}}name='{action}']") is None:
         update_element(ET.SubElement(queries, "intent"), "action", action)
+
+update_element(app, "service", ".ScreenReadingService", exported="false", foregroundServiceType="mediaProjection")
 
 legacy_controls = app.find(f"service[@{{{ANDROID}}}name='.TophAccessibilityService']")
 if legacy_controls is not None:
@@ -84,3 +86,11 @@ for source in native.glob("*.java"):
 for style in ("overlay_styles.xml", "launch_styles.xml"):
     shutil.copyfile(native / style, root / "res/values" / f"lifeos_{style}")
 
+
+app_gradle = root.parents[1] / "build.gradle"
+gradle = app_gradle.read_text()
+mlkit = "    implementation 'com.google.mlkit:text-recognition:16.0.1'"
+if mlkit not in gradle:
+    if "dependencies {" not in gradle:
+        raise ValueError("Bloco de dependências Android ausente")
+    app_gradle.write_text(gradle.replace("dependencies {", "dependencies {\n" + mlkit, 1))
