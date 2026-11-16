@@ -18,6 +18,8 @@ public class LifeOSAlarmPlugin extends Plugin {
     Intent intent = new Intent(getContext(), AlarmReceiver.class);
     intent.putExtra("id", id); intent.putExtra("title", title);
     intent.putExtra("speech", call.getString("speech", ""));
+    intent.putExtra("category", call.getString("category", ""));
+    AlarmPersonality.reset(getContext(), id);
     PendingIntent pending = PendingIntent.getBroadcast(getContext(), id, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     AlarmManager manager = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
     boolean exact = Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms();
@@ -36,6 +38,7 @@ public class LifeOSAlarmPlugin extends Plugin {
       ((AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE)).cancel(pending);
       pending.cancel();
     }
+    AlarmPersonality.reset(getContext(), id);
     call.resolve();
   }
 }
