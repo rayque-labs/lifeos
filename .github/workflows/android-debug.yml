@@ -31,7 +31,8 @@ jobs:
       - name: Verify Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/apksigner"
       - name: Install frontend dependencies
         run: npm ci
       - name: Preflight frontend lint and dependency checks
