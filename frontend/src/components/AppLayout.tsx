@@ -4,12 +4,13 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   CalendarDays, CheckSquare2, Plus, ChevronRight, CircleDollarSign, Command,
-  FolderKanban, LayoutDashboard, LogOut, Menu, NotebookPen, Settings2, Sparkles, X,
+  FolderKanban, LayoutDashboard, LogOut, Menu, NotebookPen, Settings2, Sparkles, MessageCircle, X,
 } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 
 const items = [
   { to: '/', label: 'Visão geral', icon: LayoutDashboard, end: true },
+  { to: '/assistant', label: 'Assistente', icon: MessageCircle },
   { to: '/tasks', label: 'Tarefas', icon: CheckSquare2 },
   { to: '/projects', label: 'Projetos', icon: FolderKanban },
   { to: '/habits', label: 'Hábitos', icon: Sparkles },
@@ -24,7 +25,7 @@ export function AppLayout() {
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const activeTab = location.pathname === '/' ? 0 : location.pathname === '/calendar' ? 1 : location.pathname === '/tasks' ? 2 : location.pathname === '/finance' ? 3 : -1
+  const activeTab = location.pathname === '/' ? 0 : location.pathname === '/calendar' ? 1 : location.pathname === '/tasks' ? 2 : location.pathname === '/assistant' ? 3 : -1
   const title = titleByPath[location.pathname] || (location.pathname === '/settings' ? 'Configurações' : 'LifeOS')
   const leave = async () => { await logout(); navigate('/login') }
 
