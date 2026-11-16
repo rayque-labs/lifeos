@@ -52,6 +52,7 @@ jobs:
           grep -q 'LocalNotifications' android/app/src/main/assets/capacitor.plugins.json || { echo '::error::LocalNotifications native plugin missing from Android registration'; exit 1; }
       - name: Apply original LifeOS Android launcher icon
         run: |
+          python -m pip install --quiet Pillow
           python - <<'PY'
           from pathlib import Path
           from PIL import Image, ImageOps
