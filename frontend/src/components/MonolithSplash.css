@@ -1,7 +1,7 @@
 /* Matches the original user-supplied lifeos_splash_sem_marcas.html. */
-.monolith-splash{--duration:5s;position:fixed;inset:0;z-index:9999;background:#000;color:#F1F1ED;display:flex;align-items:center;justify-content:center;overflow:hidden;isolation:isolate}
+.monolith-splash{--duration:3.2s;position:fixed;inset:0;z-index:9999;background:#000;color:#F1F1ED;display:flex;align-items:center;justify-content:center;overflow:hidden;isolation:isolate}
 .monolith-splash__center{width:100%;display:flex;flex-direction:column;align-items:center;transform:translateY(-5vh)}
-.monolith-splash__float{width:min(76vw,330px);aspect-ratio:1;position:relative;isolation:isolate;animation:monolith-float 4.8s ease-in-out infinite}
+.monolith-splash__float{width:min(76vw,330px);aspect-ratio:1;position:relative;isolation:isolate;animation:monolith-float 3.2s ease-in-out infinite}
 .monolith-splash__symbol{display:block;width:100%;height:100%;object-fit:contain;animation:monolith-reveal var(--duration) cubic-bezier(.25,.05,.25,1) both;filter:brightness(.28) saturate(.75)}
 .monolith-splash__name{margin-top:0;font:750 clamp(32px,9vw,45px)/1 Inter,system-ui,sans-serif;letter-spacing:-.055em;opacity:0;transform:translateY(12px);animation:monolith-word var(--duration) ease-out both}
 .monolith-splash__name span{color:#C5FF4A}
