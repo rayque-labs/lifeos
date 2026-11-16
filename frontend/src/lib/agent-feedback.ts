@@ -17,9 +17,9 @@ export function clearSuggestionFeedback(userId: number | string): void {
   localStorage.removeItem(storageKey(userId))
 }
 export function feedbackCooldownMs(userId: number | string): number {
-  const last = readSuggestionFeedback(userId).filter(item => item.kind === 'wellbeing').slice(-3)
-  if (last.some(item => item.response === 'not_useful')) return 24 * 60 * 60 * 1000
-  if (last.some(item => item.response === 'not_now')) return 12 * 60 * 60 * 1000
+  const last = readSuggestionFeedback(userId).filter(item => item.kind === 'wellbeing').at(-1)
+  if (last?.response === 'not_useful') return 24 * 60 * 60 * 1000
+  if (last?.response === 'not_now') return 12 * 60 * 60 * 1000
   return 6 * 60 * 60 * 1000
 }
 export function allowedSuggestionHour(date = new Date()): boolean {
