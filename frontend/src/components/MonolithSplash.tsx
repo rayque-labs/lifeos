@@ -22,5 +22,6 @@ export function MonolithSplash({ onComplete }: { onComplete: () => void }) {
         </div>
       </div>
       <div className="monolith-splash__line" aria-hidden="true"><span /></div>
+    </div>
   )
 }
