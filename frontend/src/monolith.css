@@ -90,3 +90,18 @@ body{background:var(--mono-bg);color:var(--mono-text)}
   .app-shell .mono-nav-create-circle svg{width:30px;height:30px}
   .app-shell main{padding-bottom:calc(116px + env(safe-area-inset-bottom,0px))!important}
 }
+
+/* Monolith reference refinement — carbon surfaces, mineral white, lime accents. */
+:root{--mono-bg:#101010;--mono-surface:#202123;--mono-muted:#555B66;--mono-accent:#C5FF4A;--mono-text:#F1F1ED}
+.app-shell main{background:linear-gradient(180deg,#101010 0%,#121313 100%)!important}
+.app-shell section,.app-shell article{background:linear-gradient(150deg,#252628,#1a1b1d)!important;border:1px solid #383a3d!important;border-radius:19px!important;box-shadow:0 8px 22px #00000028!important}
+.app-shell h1,.app-shell h2,.app-shell h3{letter-spacing:-.025em}
+.app-shell .mono-bottom-nav{background:#131415f5!important;border-top:1px solid #333638!important}
+.app-shell .mono-bottom-nav a[aria-current="page"],.app-shell .mono-nav-item.is-active{color:#C5FF4A!important}
+.app-shell button[class*="bg-[#C5FF4A]"]{box-shadow:0 3px 16px #C5FF4A26}
+.app-shell .mono-banner{background-size:cover;background-position:center}
+.app-shell .mono-banner img,.app-shell .mono-avatar img{image-rendering:auto}
+@media(max-width:767px){
+ .app-shell section,.app-shell article{border-radius:17px!important}
+ .app-shell main{padding-left:14px;padding-right:14px}
+}
