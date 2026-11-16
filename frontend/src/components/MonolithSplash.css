@@ -39,6 +39,7 @@
   animation: monolith-sweep 1.14s 570ms cubic-bezier(.32,.08,.48,1) both;
 }
 .monolith-splash__name {
+  text-align: center;
   font: 750 clamp(28px, 8vw, 46px)/1 system-ui, sans-serif;
   letter-spacing: -.045em;
   animation: monolith-name 520ms 260ms cubic-bezier(.2,.72,.21,1) both;
