@@ -114,10 +114,14 @@ jobs:
           )
           updated = original
           for permission in forbidden:
-              updated = re.sub(
-                  r'<uses-permission(?:-sdk-23)?\\b(?=[^>]*android:name=["\\']android\\.permission\\.' + permission + r'["\\'])[^>]*/>',
-                  '', updated,
+              # Match only self-closing permission declarations, without rewriting XML namespaces.
+              pattern = (
+                  r"<uses-permission(?:-sdk-23)?\\b"
+                  r"(?=[^>]*android:name=['\\\"]android\\.permission\\."
+                  + permission +
+                  r"['\\\"])[^>]*/>"
               )
+              updated = re.sub(pattern, '', updated)
           manifest.write_text(updated)
           print('Minimal-permission manifest prepared without XML rewriting.')
           PY
