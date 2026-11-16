@@ -54,7 +54,7 @@ jobs:
               "webDir": "dist",
               "android": {"backgroundColor": "#101010"},
           }
-          Path("capacitor.config.json").write_text(json.dumps(config, indent=2) + "\\n")
+          Path("capacitor.config.json").write_text(json.dumps(config, indent=2))
           Path("capacitor.config.ts").unlink()
           PY
           test -f capacitor.config.json
