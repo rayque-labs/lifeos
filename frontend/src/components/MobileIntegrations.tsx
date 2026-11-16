@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { bankSnapshot, loadConnection, openWhatsAppDraft, removeConnection, storeConnection, whatsAppChats, whatsAppPairingCode, whatsAppStatus, type Connection, type FinanceSnapshot } from '../lib/mobile-integrations'
-import { isAndroid, nativeAssistant } from '../lib/native-assistant'
+import { isAndroid } from '../lib/native-assistant'
 import { Button, Card, Field, Input } from './ui'
 
 const empty = { url: '', token: '', instance: '' }
@@ -108,14 +108,11 @@ function Integration({ account, kind }: { account: string; kind: 'whatsapp' | 'o
 }
 
 export function MobileIntegrations({ account }: { account: string }) {
-  const [notice, setNotice] = useState('')
   return <Card className="space-y-4">
     <h2 className="font-semibold">Integrações</h2>
     {isAndroid && <details className="space-y-3">
       <summary className="cursor-pointer font-semibold">Controle do Android</summary>
-      <p className="text-sm opacity-75">Abra a Toph flutuante sobre um app compatível e peça “o que aparece nessa tela?”, “tocar em Pesquisar no Instagram” ou “rolar para baixo no Chrome”. Para digitar, selecione o campo primeiro. “Pesquisar energia solar no Chrome” abre os resultados.</p>
-      <Button variant="secondary" onClick={() => void nativeAssistant.openAccessibilitySettings().catch(() => setNotice('Abra Acessibilidade nas configurações do Android e procure Toph.'))}>Configurar Acessibilidade</Button>
-      {notice && <p role="status" className="text-sm">{notice}</p>}
+      <p className="text-sm opacity-75">Peça à Toph para abrir um aplicativo ou pesquisar no Chrome. Por exemplo, diga “Pesquisar energia solar no Chrome”.</p>
     </details>}
     <Integration key={`whatsapp:${account}`} kind="whatsapp" account={account} />
     <Integration key={`open-finance:${account}`} kind="open-finance" account={account} />
