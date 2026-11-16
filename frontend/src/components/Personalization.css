@@ -16,27 +16,24 @@
 /* Built-in section artwork: reproducible CSS assets shipped with every public clone.
    Personal banner uploads and selected presets continue to take precedence. */
 .mono-banner--dashboard{background-image:radial-gradient(ellipse at 84% 62%,#C5FF4A77,transparent 35%),repeating-radial-gradient(circle at 85% 55%,transparent 0 20px,#C5FF4A35 21px 22px,transparent 24px 47px),linear-gradient(130deg,#101010,#212923)}
-.mono-banner--projects{background-image:linear-gradient(135deg,transparent 0 54%,#C5FF4A33 54.2% 55%,transparent 55.2%),repeating-linear-gradient(135deg,transparent 0 34px,#C5FF4A24 35px 36px,transparent 37px 68px),radial-gradient(ellipse at 90% 70%,#C5FF4A55,transparent 50%)}
 .mono-banner--habits{background-image:repeating-radial-gradient(circle at 84% 53%,transparent 0 20px,#C5FF4A55 21px 22px,transparent 24px 42px),radial-gradient(circle at 84% 53%,#C5FF4A66,transparent 43%)}
-.mono-banner--notes{background-image:linear-gradient(110deg,transparent 57%,#C5FF4A29 58%,transparent 59%),repeating-linear-gradient(0deg,transparent 0 24px,#C5FF4A29 25px 26px,transparent 27px 48px),linear-gradient(130deg,#101010,#22291a)}
-.mono-banner--finance{background-image:linear-gradient(135deg,transparent 60%,#C5FF4A33 60.3%,transparent 61%),linear-gradient(150deg,transparent 50%,#C5FF4A50 50.3% 51%,transparent 51.3%),radial-gradient(ellipse at 83% 67%,#C5FF4A7a,transparent 44%),linear-gradient(110deg,#101010,#1d2515)}
-.mono-banner--finance .mono-banner__art i{border-radius:8px;transform:skewY(-15deg);border-color:#C5FF4A88}
-.mono-banner--projects .mono-banner__art i{border-radius:6px;transform:rotate(45deg)}
-.mono-banner--notes .mono-banner__art i{border-radius:4px}
 @media(max-width:550px){.mono-banner{min-height:156px}.mono-banner__copy{max-width:76%}.mono-banner__copy p{line-height:1.4}}
 
 
 .mono-banner--calendar { --section-banner: url('/banner-agenda.webp'); }
 .mono-banner--tasks { --section-banner: url('/banner-tarefas.webp'); }
 .mono-banner--chat { --section-banner: url('/banner-chat-toph.webp'); }
-.mono-banner:is(.mono-banner--calendar, .mono-banner--tasks, .mono-banner--chat) {
+.mono-banner--projects { --section-banner: url('/banner-projetos.webp'); }
+.mono-banner--notes { --section-banner: url('/banner-notas.webp'); }
+.mono-banner--finance { --section-banner: url('/banner-financas.webp'); }
+.mono-banner.mono-banner--illustrated {
   background-image: var(--section-banner);
   min-height: clamp(132px, 21vw, 216px);
 }
-.mono-banner:is(.mono-banner--calendar, .mono-banner--tasks, .mono-banner--chat)::before {
+.mono-banner.mono-banner--illustrated::before {
   background: linear-gradient(90deg, #101010 0%, #101010d9 27%, #10101030 57%, transparent 76%);
 }
-.mono-banner:is(.mono-banner--calendar, .mono-banner--tasks, .mono-banner--chat) .mono-banner__art { display: none; }
-.app-shell .mono-banner-wrap:not(.mono-banner-wrap--compact) .mono-banner:is(.mono-banner--calendar, .mono-banner--tasks, .mono-banner--chat) {
+.mono-banner.mono-banner--illustrated .mono-banner__art { display: none; }
+.app-shell .mono-banner-wrap:not(.mono-banner-wrap--compact) .mono-banner.mono-banner--illustrated {
   min-height: clamp(126px, 21vw, 216px);
 }

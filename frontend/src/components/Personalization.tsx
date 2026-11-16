@@ -14,6 +14,7 @@ export const sections = {
   finance: { label: 'Finanças', subtitle: 'Clareza para suas decisões.', presets: ['pulse','grid','horizon'] },
 } as const
 export type Section = keyof typeof sections
+const illustratedSections = new Set<Section>(['calendar', 'tasks', 'chat', 'projects', 'notes', 'finance'])
 type ImageValue = { type: 'preset'; value: string } | { type: 'image'; value: string }
 const eventName = 'lifeos:personalization'
 function key(userId: string, field: string) { return 'lifeos:monolith:' + userId + ':' + field }
@@ -65,6 +66,7 @@ export function SectionBanner({ section, compact = false, pageHeading = false }:
   const { value, set } = usePersonalization(field)
   const [editing,setEditing] = useState(false)
   const [error,setError] = useState('')
+  const defaultArtwork = !value && illustratedSections.has(section)
   const preset = value?.type === 'preset' ? value.value : info.presets[0]
   const upload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; e.target.value = ''
@@ -73,7 +75,7 @@ export function SectionBanner({ section, compact = false, pageHeading = false }:
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Erro ao carregar imagem.') }
   }
   return <div className={`mono-banner-wrap ${compact ? 'mono-banner-wrap--compact' : ''}`}>
-    <div className={`mono-banner ${!value ? `mono-banner--${section}` : ''} mono-art-${preset}`} style={value?.type==='image'?{backgroundImage:`linear-gradient(90deg,#000b,#0003),url("${value.value}")`,backgroundSize:'cover',backgroundPosition:'center'}:undefined}>
+    <div className={`mono-banner ${!value ? `mono-banner--${section}` : ''} ${defaultArtwork ? 'mono-banner--illustrated' : ''} mono-art-${preset}`} style={value?.type==='image'?{backgroundImage:`linear-gradient(90deg,#000b,#0003),url("${value.value}")`,backgroundSize:'cover',backgroundPosition:'center'}:undefined}>
       <div className="mono-banner__art" aria-hidden="true"><i/><i/><i/></div>
       {!compact && <div className="mono-banner__copy"><span className="mono-banner__eyebrow">LIFEOS / {info.label.toUpperCase()}</span><Heading>{info.label}</Heading><p>{info.subtitle}</p></div>}
       <button className="mono-banner__edit" type="button" onClick={() => setEditing(!editing)} aria-expanded={editing} aria-label={`Personalizar banner de ${info.label}`}><Camera size={16}/> Personalizar</button>
