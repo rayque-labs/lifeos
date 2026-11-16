@@ -1,4 +1,4 @@
-type AlarmOptions = { id: number; at: number; title: string; speech: string }
+type AlarmOptions = { id: number; at: number; title: string; speech: string; category?: string }
 type AlarmPlugin = {
   schedule(options: AlarmOptions): Promise<{ exact: boolean }>
   cancel(options: { id: number }): Promise<void>
