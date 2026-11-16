@@ -144,7 +144,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
   return <div className={`mx-auto flex w-full max-w-3xl flex-col gap-3 text-[#F1F1ED] ${floating ? 'assistant-compact' : 'min-h-[65vh]'}`}>
     {!floating && <SectionBanner section="chat" pageHeading />}
     {!floating && isAndroid && <Link to="/settings#toph-flutuante" className="mono-accent self-start text-sm underline">Configurar Toph flutuante</Link>}
-    {!floating && <details className="rounded-2xl border border-[#34363a] bg-[#1d1e20] p-4" open={!key && AI_PROVIDERS[provider].requiresKey}>
+    {!floating && <details className="rounded-2xl border border-[#34363a] bg-[#1d1e20] p-4" open>
       <summary className="cursor-pointer font-semibold">Conectar sua IA · {AI_PROVIDERS[provider].label}</summary>
       <p className="mt-2 text-xs text-[#a3a5a9]">Salve sua configuração criptografada neste aparelho para não precisar digitá-la novamente. Você pode substituir ou excluir a chave quando quiser.</p>
       <label className="mt-3 block text-sm">Provedor
