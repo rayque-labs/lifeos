@@ -1,4 +1,5 @@
 import { ProfilePhoto } from './Personalization'
+import { AgentWellbeingNudge } from './AgentWellbeingNudge'
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -63,6 +64,7 @@ export function AppLayout() {
         <div className="hidden items-center gap-2 text-xs text-[#8a978d] sm:flex"><span className="h-2 w-2 rounded-full bg-[#86b764]" /> Seus dados estão sincronizados</div>
         <button onClick={() => navigate('/settings')} aria-label="Configurações" className="mono-header-action rounded-xl p-2 text-[#697a6e] hover:bg-white"><Settings2 size={23} /></button>
       </header>
+      <AgentWellbeingNudge />
       <div key={location.pathname} className="mono-page-transition mx-auto max-w-[1440px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10 lg:py-9"><Outlet /></div>
       <nav aria-label="Navegação principal" className="mono-bottom-nav fixed bottom-0 inset-x-0 z-30 grid grid-cols-4 items-center px-2 pt-2 md:hidden">
         <span aria-hidden="true" className="mono-nav-indicator" style={{ transform: `translateX(${activeTab < 0 ? 0 : activeTab * 100}%)`, opacity: activeTab < 0 ? 0 : 1 }} />
