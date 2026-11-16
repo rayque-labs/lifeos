@@ -57,7 +57,7 @@ async function compressImage(file: File, square = false): Promise<string> {
     return canvas.toDataURL('image/webp',.92)
   } finally { URL.revokeObjectURL(objectUrl) }
 }
-export function SectionBanner({ section }: { section: Section }) {
+export function SectionBanner({ section, compact = false }: { section: Section; compact?: boolean }) {
   const info = sections[section]
   const field = 'banner:' + section
   const { value, set } = usePersonalization(field)
@@ -70,10 +70,10 @@ export function SectionBanner({ section }: { section: Section }) {
     try { const image = await compressImage(file); if (!set({type:'image',value:image})) throw new Error('Armazenamento local cheio. Tente uma imagem menor.'); setError(''); setEditing(false) }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Erro ao carregar imagem.') }
   }
-  return <div className="mono-banner-wrap">
+  return <div className={`mono-banner-wrap ${compact ? 'mono-banner-wrap--compact' : ''}`}>
     <div className={`mono-banner ${!value ? `mono-banner--${section}` : ''} mono-art-${preset}`} style={value?.type==='image'?{backgroundImage:`linear-gradient(90deg,#000b,#0003),url("${value.value}")`,backgroundSize:'cover',backgroundPosition:'center'}:undefined}>
       <div className="mono-banner__art" aria-hidden="true"><i/><i/><i/></div>
-      <div className="mono-banner__copy"><span className="mono-banner__eyebrow">LIFEOS / {info.label.toUpperCase()}</span><h2>{info.label}</h2><p>{info.subtitle}</p></div>
+      {!compact && <div className="mono-banner__copy"><span className="mono-banner__eyebrow">LIFEOS / {info.label.toUpperCase()}</span><h2>{info.label}</h2><p>{info.subtitle}</p></div>}
       <button className="mono-banner__edit" type="button" onClick={() => setEditing(!editing)} aria-expanded={editing} aria-label={`Personalizar banner de ${info.label}`}><Camera size={16}/> Personalizar</button>
     </div>
     {editing && <div className="mono-banner-options">

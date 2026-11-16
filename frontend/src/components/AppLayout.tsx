@@ -1,54 +1,72 @@
 import { ProfilePhoto } from './Personalization'
 import { AgentWellbeingNudge } from './AgentWellbeingNudge'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { PluginListenerHandle } from '@capacitor/core'
+import { isAndroid, nativeAssistant } from '../lib/native-assistant'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  CalendarDays, CheckSquare2, Plus, ChevronRight, CircleDollarSign, Command,
-  FolderKanban, LayoutDashboard, LogOut, Menu, NotebookPen, Settings2, Sparkles, MessageCircle, X,
+  ArrowLeft, Bell, CalendarDays, CheckSquare2, Plus, ChevronRight, CircleDollarSign, Grid2X2, House,
+  FolderKanban, LayoutDashboard, LogOut, NotebookPen, Settings2, Sparkles, MessageCircle, X,
 } from 'lucide-react'
 import { useAuth } from '../lib/auth'
+import { FloatingAssistant } from './FloatingAssistant'
 
 const items = [
-  { to: '/', label: 'Visão geral', icon: LayoutDashboard, end: true },
+  { to: '/', label: 'Início', icon: LayoutDashboard, end: true },
   { to: '/assistant', label: 'Assistente', icon: MessageCircle },
   { to: '/tasks', label: 'Tarefas', icon: CheckSquare2 },
   { to: '/projects', label: 'Projetos', icon: FolderKanban },
   { to: '/habits', label: 'Hábitos', icon: Sparkles },
   { to: '/notes', label: 'Notas', icon: NotebookPen },
-  { to: '/calendar', label: 'Calendário', icon: CalendarDays },
+  { to: '/calendar', label: 'Agenda', icon: CalendarDays },
   { to: '/finance', label: 'Finanças', icon: CircleDollarSign },
 ]
 const titleByPath: Record<string, string> = Object.fromEntries(items.map(item => [item.to, item.label]))
 
 export function AppLayout() {
   const [open, setOpen] = useState(false)
+  const [session, setSession] = useState(0)
+  const showAssistant = () => setSession(value => value + 1)
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const activeTab = location.pathname === '/' ? 0 : location.pathname === '/calendar' ? 1 : location.pathname === '/tasks' ? 2 : location.pathname === '/assistant' ? 3 : -1
+  const home = location.pathname === '/'
+  const otherPage = !['/', '/calendar', '/assistant'].includes(location.pathname)
+  useEffect(() => {
+    if (!isAndroid) return
+    let active = true
+    let handle: PluginListenerHandle | undefined
+    const openAssistant = () => {
+      void nativeAssistant.consumeLaunch().then(({ active: invoked }) => {
+        if (active && invoked) { setOpen(false); showAssistant() }
+      }).catch(() => {})
+    }
+    void nativeAssistant.addListener('assistantInvoked', openAssistant).then(listener => {
+      if (!active) { void listener.remove(); return }
+      handle = listener
+      openAssistant()
+    }).catch(() => {})
+    return () => { active = false; void handle?.remove() }
+  }, [])
   const title = titleByPath[location.pathname] || (location.pathname === '/settings' ? 'Configurações' : 'LifeOS')
   const leave = async () => { await logout(); navigate('/login') }
 
   return <div className="app-shell min-h-screen bg-[#f5f6f1] md:flex">
     {open && <button aria-label="Fechar menu" className="fixed inset-0 z-30 bg-[#12251b]/35 md:hidden" onClick={() => setOpen(false)} />}
-    <aside className={`sidebar-scroll fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col bg-[#203c2e] px-4 py-5 text-white transition-transform md:static md:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+    <aside id="lifeos-more" className={`sidebar-scroll mono-more ${open ? 'is-open' : ''} fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col bg-[#203c2e] px-4 py-5 text-white transition-transform md:static md:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex items-center justify-between px-2 pb-8">
         <Link to="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C5FF4A] text-[#101010]"><Command size={21} /></span>
-          <span><span className="block text-[17px] font-bold tracking-tight">lifeos</span><span className="text-[10px] uppercase tracking-[.2em] text-[#b6c9ba]">personal system</span></span>
+          <img src="/lifeos-symbol.svg" alt="" className="h-9 w-9" />
+          <span className="text-xl font-bold tracking-tight">LifeOS</span>
         </Link>
         <button aria-label="Fechar menu" className="rounded-lg p-2 text-[#d5e1d7] hover:bg-white/10 md:hidden" onClick={() => setOpen(false)}><X size={18} /></button>
       </div>
-      <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[.18em] text-[#99b09f]">Workspace</p>
-      <nav className="sidebar-scroll flex-1 space-y-1 overflow-y-auto">
+      <p className="px-3 pb-2 text-sm font-semibold md:hidden">Mais</p>
+      <nav className="mono-sidebar-links sidebar-scroll flex-1 overflow-y-auto">
         {items.map(({ to, label, icon: Icon, end }) => <NavLink key={to} to={to} end={end} onClick={() => setOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition ${isActive ? 'bg-[#C5FF4A] text-[#101010] shadow-sm' : 'text-[#d0ddd2] hover:bg-white/[.08] hover:text-white'}`}>
           <Icon size={17} strokeWidth={1.8} />{label}
         </NavLink>)}
       </nav>
-      <div className="mt-5 rounded-2xl border border-white/10 bg-white/[.06] p-3.5">
-        <div className="flex items-center gap-2 text-[#d9f16f]"><Sparkles size={15} /><span className="text-xs font-semibold">Um passo de cada vez</span></div>
-        <p className="mt-2 text-xs leading-5 text-[#bfd0c2]">Organize suas prioridades e mantenha o foco no que importa.</p>
-      </div>
       <div className="mt-4 border-t border-white/10 pt-3">
         <NavLink to="/settings" onClick={() => setOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium ${isActive ? 'bg-white/10 text-white' : 'text-[#d0ddd2] hover:bg-white/[.08]'}`}><Settings2 size={17} />Configurações</NavLink>
         <div className="mt-3 flex items-center gap-3 rounded-xl px-2 py-2">
@@ -60,21 +78,22 @@ export function AppLayout() {
     </aside>
     <main className="min-w-0 flex-1 md:ml-0">
       <header className="mono-top-header sticky top-0 z-20 flex items-center gap-3 border-b border-[#e8ebe5] bg-[#f7f8f4]/90 px-4 backdrop-blur-xl sm:px-7 lg:px-10">
-        <button aria-label="Abrir menu" onClick={() => setOpen(true)} className="mono-header-action rounded-xl p-2 text-[#40564a] hover:bg-white md:hidden"><Menu size={24} /></button>
-        <div className="mono-header-title flex min-w-0 flex-1 items-center gap-2 text-xs text-[#94a097]"><span className="hidden sm:inline">LifeOS</span><ChevronRight size={13} className="hidden sm:inline" /><span className="truncate font-semibold text-[#40564a]">{title}</span></div>
-        <div className="hidden items-center gap-2 text-xs text-[#8a978d] sm:flex"><span className="h-2 w-2 rounded-full bg-[#86b764]" /> Seus dados estão sincronizados</div>
-        <button onClick={() => navigate('/settings')} aria-label="Configurações" className="mono-header-action rounded-xl p-2 text-[#697a6e] hover:bg-white"><Settings2 size={23} /></button>
+        {home ? <Link to="/" className="mono-mobile-brand md:hidden"><img src="/lifeos-symbol.svg" alt="" /><span>LifeOS</span></Link>
+          : <Link to="/" aria-label="Voltar ao início" className="mono-mobile-back md:hidden"><ArrowLeft size={23} /></Link>}
+        <div className={`mono-header-title ${home ? 'hidden md:flex' : 'flex'} min-w-0 flex-1 items-center gap-2 text-xs text-[#94a097]`}><span className="hidden md:inline">LifeOS</span><ChevronRight size={13} className="hidden md:inline" /><span className="truncate font-semibold">{title}</span></div>
+        {home && <Link to="/calendar" aria-label="Agenda e lembretes" className="mono-header-icon"><Bell size={21} /></Link>}
+        <Link to="/settings" aria-label="Perfil e configurações" className="mono-header-icon"><ProfilePhoto /></Link>
       </header>
       <AgentWellbeingNudge />
-      <div key={location.pathname} className="mono-page-transition mx-auto max-w-[1440px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10 lg:py-9"><Outlet /></div>
-      <nav aria-label="Navegação principal" className="mono-bottom-nav fixed bottom-0 inset-x-0 z-30 grid grid-cols-4 items-center px-2 pt-2 md:hidden">
-        <span aria-hidden="true" className="mono-nav-indicator" style={{ transform: `translateX(${activeTab < 0 ? 0 : activeTab * 100}%)`, opacity: activeTab < 0 ? 0 : 1 }} />
-        <NavLink end to="/" className={({isActive}) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><LayoutDashboard size={21}/><span>Início</span></NavLink>
-        <NavLink to="/calendar" className={({isActive}) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><CalendarDays size={21}/><span>Agenda</span></NavLink>
-        <Link to="/tasks" aria-label="Abrir tarefas" aria-current={location.pathname === '/tasks' ? 'page' : undefined} className={`mono-nav-item mono-nav-create ${location.pathname === '/tasks' ? 'is-active' : ''}`}><span className="mono-nav-create-circle"><Plus size={25}/></span><span className="sr-only">Tarefas</span></Link>
-        <NavLink to="/assistant" className={({isActive}) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><MessageCircle size={21}/><span>Chat</span></NavLink>
+      <div key={location.pathname === '/tasks' && new URLSearchParams(location.search).get('nova') === '1' ? location.key : location.pathname} className="mono-page-transition mx-auto max-w-[1440px] px-4 py-4 sm:px-7 sm:py-8 lg:px-10 lg:py-9"><Outlet /></div>
+      <nav aria-label="Navegação principal" className="mono-bottom-nav fixed bottom-0 inset-x-0 z-30 grid grid-cols-5 items-center md:hidden">
+        <NavLink end to="/" className={({ isActive }) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><House size={22}/><span>Início</span></NavLink>
+        <NavLink to="/calendar" className={({ isActive }) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><CalendarDays size={22}/><span>Agenda</span></NavLink>
+        <Link to="/tasks?nova=1" aria-label="Nova tarefa" className="mono-nav-item mono-nav-create"><span className="mono-nav-create-circle"><Plus size={26}/></span></Link>
+        <button type="button" onClick={showAssistant} className={`mono-nav-item ${session || location.pathname === '/assistant' ? 'is-active' : ''}`}><MessageCircle size={22}/><span>Chat</span></button>
+        <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-controls="lifeos-more" className={`mono-nav-item ${open || otherPage ? 'is-active' : ''}`}><Grid2X2 size={22}/><span>Mais</span></button>
       </nav>
-      <footer className="px-5 pb-6 text-center text-[11px] text-[#a0aaa2]">LifeOS · Um espaço para organizar o que importa</footer>
     </main>
+    {session > 0 && <FloatingAssistant request={session} onClose={() => setSession(0)} />}
   </div>
 }

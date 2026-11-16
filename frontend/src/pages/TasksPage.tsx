@@ -1,8 +1,10 @@
 import { SectionBanner } from '../components/Personalization'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { CalendarClock, Check, Circle, Clock3, ListFilter, Pencil, Plus, RotateCcw, Search, Trash2, X } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, ErrorMessage, Field, Input, LoadingState, PageHeading, Select, Textarea } from '../components/ui'
 import { get, patch, post, remove } from '../lib/api'
+import { taskChangedEvent } from '../lib/assistant-actions'
 import type { Task } from '../lib/types'
 import { alarmSpeech, cancelLifeOSAlarm, scheduleLifeOSAlarm } from '../lib/lifeosAlarm'
 
@@ -20,7 +22,15 @@ export function TasksPage() {
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('')
+  const [params, setParams] = useSearchParams()
   const [formOpen, setFormOpen] = useState(false)
+  const creating = params.get('nova') === '1'
+  const closeCreateLink = () => {
+    if (!creating) return
+    const next = new URLSearchParams(params)
+    next.delete('nova')
+    setParams(next, { replace: true })
+  }
   const [editing, setEditing] = useState<number | null>(null)
   const [draft, setDraft] = useState<Draft>(blankDraft)
   const [busy, setBusy] = useState(false)
@@ -35,13 +45,18 @@ export function TasksPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível carregar as tarefas.') }
     finally { setLoading(false) }
   }, [query, status])
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const refresh = () => { void load() }
+    refresh()
+    window.addEventListener(taskChangedEvent, refresh)
+    return () => window.removeEventListener(taskChangedEvent, refresh)
+  }, [load])
 
   const beginEdit = (task: Task) => {
     setEditing(task.id); setFormOpen(true)
     setDraft({ title: task.title, description: task.description || '', priority: task.priority, category: task.category || '', dueAt: localInput(task.due_at), recurrence: task.recurrence_rule })
   }
-  const cancel = () => { setEditing(null); setDraft(blankDraft); setFormOpen(false) }
+  const cancel = () => { setEditing(null); setDraft(blankDraft); setFormOpen(false); closeCreateLink() }
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setError(''); setBusy(true)
     const payload = { title: draft.title, description: draft.description || null, priority: draft.priority,
@@ -75,9 +90,9 @@ export function TasksPage() {
   const pending = tasks.filter(task => task.status !== 'completed').length
   return <>
     <SectionBanner section="tasks" />
-    <PageHeading title="Tarefas" description={`${pending} tarefa(s) em aberto nesta visualização.`} action={<Button onClick={() => { setDraft(blankDraft); setEditing(null); setFormOpen(value => !value) }}><Plus size={16} />Nova tarefa</Button>} />
+    <PageHeading title="Tarefas" description={`${pending} tarefa(s) em aberto nesta visualização.`} action={<Button onClick={() => { setDraft(blankDraft); setEditing(null); if (formOpen || creating) cancel(); else setFormOpen(true) }}><Plus size={16} />Nova tarefa</Button>} />
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
-    {formOpen && <Card className="mb-5 !border-[#dce7d8]">
+    {(formOpen || creating) && <Card className="mb-5 !border-[#dce7d8]">
       <div className="mb-4 flex items-start justify-between"><div><h2 className="font-semibold text-[#30483a]">{editing ? 'Editar tarefa' : 'Nova tarefa'}</h2><p className="mt-1 text-xs text-[#859187]">Defina o próximo passo e, se fizer sentido, um prazo.</p></div><button onClick={cancel} aria-label="Fechar" className="rounded-lg p-1.5 text-[#859187] hover:bg-[#f0f3ee]"><X size={18} /></button></div>
       <form onSubmit={submit} className="grid gap-4 md:grid-cols-2">
         <Field label="Título"><Input autoFocus required maxLength={150} value={draft.title} onChange={event => setDraft({ ...draft, title: event.target.value })} placeholder="Ex.: Preparar a apresentação" /></Field>

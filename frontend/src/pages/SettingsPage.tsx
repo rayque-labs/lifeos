@@ -78,7 +78,7 @@ export function SettingsPage() {
         <p className="text-xs opacity-70">Nenhuma integração externa ou captura de mensagens está ativa nesta versão. Acesso de uso, notificações e Open Finance exigem autorizações próprias. Ações que alteram dados deverão passar por confirmação detalhada.</p>
         <Button type="button" onClick={saveAgentPrefs}>Salvar preferências do agente</Button>
         <GeminiConnectionSettings />
-        {user?.id != null && <AgentVoiceSettings userId={user.id} />}
+        {user?.id != null && <AgentVoiceSettings key={user.email} account={user.email} userId={user.id} />}
         <div className="rounded-xl border border-neutral-700 p-3 space-y-2">
           <h3 className="font-semibold">Memória de sugestões</h3>
           <p className="text-sm opacity-75">O agente guarda localmente até 100 respostas às sugestões para ajustar a frequência. Nenhuma dessas respostas é enviada ao servidor.</p>

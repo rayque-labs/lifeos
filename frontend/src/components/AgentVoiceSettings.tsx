@@ -1,71 +1,111 @@
 import { useEffect, useState } from 'react'
+import { createVoice, deleteVoiceConfig, loadVoiceConfig, saveVoiceConfig, saveVoicePreference, speakVoice, stopVoice, voicePreference } from '../lib/agent-voice'
+import { isAndroid, nativeAssistant } from '../lib/native-assistant'
+import { Button, Field, Input, Select } from './ui'
 
-type VoiceChoice = { mode: 'system' | 'sample'; voiceURI: string; sampleName: string }
-const key = (id: number | string) => 'lifeos:agent:voice:v1:' + id
+const testPhrase = 'Oi! Eu sou a assistente do LifeOS. Vamos organizar seu dia?'
 
-export function AgentVoiceSettings({ userId }: { userId: number | string }) {
+export function AgentVoiceSettings({ account, userId }: { account: string; userId: number }) {
+  const [preference, setPreference] = useState(() => voicePreference(account, userId))
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
-  const [choice, setChoice] = useState<VoiceChoice>(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(key(userId)) || 'null') as Partial<VoiceChoice> | null
-      return { mode: saved?.mode === 'sample' ? 'sample' : 'system', voiceURI: saved?.voiceURI || '', sampleName: saved?.sampleName || '' }
-    } catch { return { mode: 'system', voiceURI: '', sampleName: '' } }
-  })
-  const [preview, setPreview] = useState<string | null>(null)
+  const [apiKey, setKey] = useState('')
+  const [voiceId, setVoiceId] = useState('')
+  const [name, setName] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [consent, setConsent] = useState(false)
   const [notice, setNotice] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
   useEffect(() => {
-    if (!('speechSynthesis' in window)) return
+    let active = true
+    loadVoiceConfig(account).then(config => {
+      if (active && config) { setKey(config.apiKey); setVoiceId(config.voiceId) }
+    }).catch(() => { if (active) setNotice('Não foi possível ler a voz salva.') })
+      .finally(() => { if (active) setLoaded(true) })
+    return () => { active = false; stopVoice() }
+  }, [account])
+  useEffect(() => {
+    if (isAndroid || !window.speechSynthesis) return
     const refresh = () => setVoices(window.speechSynthesis.getVoices())
     refresh()
     window.speechSynthesis.addEventListener('voiceschanged', refresh)
     return () => window.speechSynthesis.removeEventListener('voiceschanged', refresh)
   }, [])
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
-  const save = (next: VoiceChoice) => {
-    setChoice(next)
-    localStorage.setItem(key(userId), JSON.stringify(next))
+
+  const updatePreference = (next: typeof preference) => {
+    saveVoicePreference(account, next)
+    setPreference(next)
   }
-  const play = () => {
-    if (!('speechSynthesis' in window)) { setNotice('Síntese de voz não disponível neste aparelho.'); return }
-    window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance('Ei, olha quem apareceu! Bora organizar seu dia? Eu prometo tentar não implicar muito.')
-    utterance.lang = 'pt-BR'
-    const selected = voices.find(voice => voice.voiceURI === choice.voiceURI)
-    if (selected) utterance.voice = selected
-    window.speechSynthesis.speak(utterance)
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true)
+    setNotice('')
+    try { await action() }
+    catch (error) { setNotice(error instanceof Error ? error.message : 'A operação de voz falhou.') }
+    finally { setBusy(false) }
   }
-  return <section className="rounded-xl border border-neutral-700 p-3 space-y-3">
-    <h3 className="font-semibold">Voz do agente</h3>
-    <p className="text-sm opacity-75">Escolha uma voz instalada no dispositivo ou ouça uma referência de áudio. Clonagem de voz ainda não está disponível nesta versão.</p>
-    <label className="block text-sm">Tipo de voz
-      <select className="mt-2 w-full min-h-11 rounded-xl border border-neutral-600 bg-neutral-900 p-3 text-white" value={choice.mode} onChange={event => save({ ...choice, mode: event.target.value as VoiceChoice['mode'] })}>
+  const save = (id: string) => saveVoiceConfig(account, { apiKey: apiKey.trim(), voiceId: id })
+  return <section className="space-y-3 p-4">
+    <h3 className="font-semibold">Voz do assistente</h3>
+    <Field label="Tipo de voz">
+      <Select disabled={busy} value={preference.mode} onChange={event => {
+        stopVoice()
+        updatePreference({ ...preference, mode: event.target.value === 'elevenlabs' ? 'elevenlabs' : 'system' })
+      }}>
         <option value="system">Voz do sistema</option>
-        <option value="sample">Áudio de referência (somente reprodução)</option>
-      </select>
-    </label>
-    {choice.mode === 'system' ? <>
-      <label className="block text-sm">Voz disponível
-        <select className="mt-2 w-full min-h-11 rounded-xl border border-neutral-600 bg-neutral-900 p-3 text-white" value={choice.voiceURI} onChange={event => save({ ...choice, voiceURI: event.target.value })}>
-          <option value="">Padrão do aparelho</option>
-          {voices.map(voice => <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} ({voice.lang})</option>)}
-        </select>
-      </label>
-      <button type="button" className="min-h-11 rounded-xl bg-[#C5FF4A] px-4 font-semibold text-[#101010]" onClick={play}>Ouvir teste</button>
-    </> : <>
-      <label className="block text-sm">Escolher áudio de referência (até 10 MB)
-        <input className="mt-2 block w-full text-sm" type="file" accept="audio/*" onChange={event => {
-          const file = event.target.files?.[0]
-          if (!file) return
-          if (!file.type.startsWith('audio/') || file.size > 10 * 1024 * 1024) { setNotice('Escolha um arquivo de áudio de até 10 MB.'); return }
-          if (preview) URL.revokeObjectURL(preview)
-          setPreview(URL.createObjectURL(file))
-          save({ ...choice, sampleName: file.name })
-          setNotice('Áudio carregado apenas para ouvir. Ele não foi enviado nem clonado.')
-        }} />
-      </label>
-      {preview ? <audio controls src={preview} className="w-full" /> : <p className="text-xs opacity-70">Selecione um arquivo para reproduzir. A seleção não persiste após fechar o aplicativo.</p>}
-      <p className="text-xs opacity-70">Para criar falas novas com essa voz, será necessário integrar um serviço de clonagem com consentimento e direitos de uso comprovados.</p>
+        <option value="elevenlabs">Voz clonada · ElevenLabs</option>
+      </Select>
+    </Field>
+    {preference.mode === 'system' && !isAndroid && <Field label="Voz disponível">
+      <Select value={preference.voiceURI} onChange={event => updatePreference({ ...preference, voiceURI: event.target.value })}>
+        <option value="">Padrão do aparelho</option>
+        {voices.map(voice => <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} ({voice.lang})</option>)}
+      </Select>
+    </Field>}
+    {preference.mode === 'elevenlabs' && <>
+      <Field label="Chave da ElevenLabs"><Input type="password" autoComplete="off" spellCheck={false} value={apiKey} disabled={!loaded || busy} onChange={event => setKey(event.target.value)} /></Field>
+      <Field label="ID da voz"><Input value={voiceId} disabled={!loaded || busy} onChange={event => setVoiceId(event.target.value)} placeholder="Cole um ID ou crie uma voz abaixo" /></Field>
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={!loaded || busy || !apiKey.trim() || !voiceId.trim()} onClick={() => void run(async () => { await save(voiceId.trim()); setNotice('Voz salva para o chat.') })}>Salvar voz</Button>
+        <Button variant="secondary" disabled={!loaded || busy} onClick={() => void run(async () => {
+          stopVoice()
+          await deleteVoiceConfig(account)
+          setKey('')
+          setVoiceId('')
+          updatePreference({ ...preference, mode: 'system' })
+          setNotice('Chave e ID removidos deste aparelho.')
+        })}>Remover chave e ID</Button>
+      </div>
+      <details className="space-y-3">
+        <summary className="cursor-pointer font-medium">Criar voz a partir de uma gravação</summary>
+        <Field label="Nome da voz"><Input value={name} disabled={busy} maxLength={100} onChange={event => setName(event.target.value)} /></Field>
+        <Field label="Áudio de referência (até 10 MB)">
+          <input type="file" accept="audio/*" disabled={busy} className="block w-full text-sm" onChange={event => {
+            const selected = event.target.files?.[0]
+            const valid = selected && (selected.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg|flac|aac|webm)$/i.test(selected.name)) && selected.size > 0 && selected.size <= 10 * 1024 * 1024
+            setFile(valid ? selected : null)
+            setConsent(false)
+            setNotice(selected && !valid ? 'Escolha um áudio válido de até 10 MB.' : '')
+          }} />
+        </Field>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-1" checked={consent} disabled={busy} onChange={event => setConsent(event.target.checked)} />
+          <span>Tenho autorização para clonar esta voz e enviar a gravação à ElevenLabs.</span>
+        </label>
+        <Button disabled={!loaded || busy || !apiKey.trim() || !name.trim() || !file || !consent} onClick={() => void run(async () => {
+          if (!file || !consent) return
+          const result = await createVoice(apiKey.trim(), name.trim(), file)
+          setVoiceId(result.voiceId)
+          setConsent(false)
+          await save(result.voiceId)
+          setNotice(result.requiresVerification ? 'Voz criada. Conclua a verificação na ElevenLabs para usar.' : 'Voz criada e salva. Use Ouvir teste para conferir.')
+        })}>Criar e salvar voz</Button>
+      </details>
     </>}
-    {notice && <p role="status" className="text-xs">{notice}</p>}
+    <div className="flex flex-wrap gap-2">
+      <Button variant="secondary" disabled={!loaded || busy} onClick={() => void run(() => speakVoice(testPhrase, account, userId))}>Ouvir teste</Button>
+      {isAndroid && <Button variant="secondary" disabled={busy} onClick={() => void run(() => nativeAssistant.openSettings())}>Assistente padrão do Android</Button>}
+    </div>
+    {notice && <p role="status" className="text-sm">{notice}</p>}
   </section>
 }

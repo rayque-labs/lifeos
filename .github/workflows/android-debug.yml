@@ -67,6 +67,7 @@ jobs:
           npx cap add android
           test -f android/gradlew
           npx cap sync android
+          python native-android/configure.py
           echo 'Checking native SQLite registration:'
           cat android/app/src/main/assets/capacitor.plugins.json
           grep -q 'CapacitorSQLite' android/app/src/main/assets/capacitor.plugins.json || { echo '::error::SQLite native plugin missing from Android registration'; exit 1; }

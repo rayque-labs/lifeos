@@ -47,31 +47,40 @@ async function remove(name: string): Promise<void> {
     })
   } finally { db.close() }
 }
-async function getKey(): Promise<CryptoKey> {
-  const existing = await read<CryptoKey>(KEY)
+async function getKey(keyName: string): Promise<CryptoKey> {
+  const existing = await read<CryptoKey>(keyName)
   if (existing) return existing
   const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
-  await write(KEY, key)
+  await write(keyName, key)
   return key
 }
-export async function saveAIConfig(config: AIConfig): Promise<void> {
-  const key = await getKey()
+export async function saveEncrypted(name: string, keyName: string, config: unknown): Promise<void> {
+  const key = await getKey(keyName)
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const encoded = new TextEncoder().encode(JSON.stringify(config))
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded)
-  await write(CREDENTIALS, { iv: Array.from(iv), encrypted: Array.from(new Uint8Array(encrypted)) } satisfies RecordValue)
+  await write(name, { iv: Array.from(iv), encrypted: Array.from(new Uint8Array(encrypted)) } satisfies RecordValue)
+}
+export async function loadEncrypted<T>(name: string, keyName: string): Promise<T | null> {
+  const stored = await read<RecordValue>(name)
+  if (!stored) return null
+  const key = await read<CryptoKey>(keyName)
+  if (!key) throw Error('Chave de criptografia indisponível. Exclua a configuração e salve novamente.')
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(stored.iv) }, key, new Uint8Array(stored.encrypted))
+  return JSON.parse(new TextDecoder().decode(decrypted)) as T
+}
+export async function deleteEncrypted(name: string, keyName: string): Promise<void> {
+  await remove(name)
+  await remove(keyName)
+}
+export async function saveAIConfig(config: AIConfig): Promise<void> {
+  await saveEncrypted(CREDENTIALS, KEY, config)
   window.dispatchEvent(new Event('lifeos-ai-config-changed'))
 }
 export async function loadAIConfig(): Promise<AIConfig | null> {
-  const stored = await read<RecordValue>(CREDENTIALS)
-  if (!stored) return null
-  const key = await read<CryptoKey>(KEY)
-  if (!key) throw Error('Chave de criptografia indisponível. Exclua a configuração e salve novamente.')
-  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(stored.iv) }, key, new Uint8Array(stored.encrypted))
-  return JSON.parse(new TextDecoder().decode(decrypted)) as AIConfig
+  return loadEncrypted<AIConfig>(CREDENTIALS, KEY)
 }
 export async function deleteAIConfig(): Promise<void> {
-  await remove(CREDENTIALS)
-  await remove(KEY)
+  await deleteEncrypted(CREDENTIALS, KEY)
   window.dispatchEvent(new Event('lifeos-ai-config-changed'))
 }
