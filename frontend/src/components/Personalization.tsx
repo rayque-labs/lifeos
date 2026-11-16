@@ -47,14 +47,14 @@ async function compressImage(file: File, square = false): Promise<string> {
     img.src = objectUrl
     await img.decode()
     const canvas = document.createElement('canvas')
-    const maxW = square ? 320 : 1200, maxH = square ? 320 : 440
+    const maxW = square ? 640 : 1920, maxH = square ? 640 : 720
     canvas.width = maxW; canvas.height = maxH
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('Não foi possível processar a imagem.')
     const scale = Math.max(maxW/img.naturalWidth,maxH/img.naturalHeight)
     const w = img.naturalWidth*scale,h = img.naturalHeight*scale
     ctx.drawImage(img,(maxW-w)/2,(maxH-h)/2,w,h)
-    return canvas.toDataURL('image/webp',.78)
+    return canvas.toDataURL('image/webp',.92)
   } finally { URL.revokeObjectURL(objectUrl) }
 }
 export function SectionBanner({ section }: { section: Section }) {
