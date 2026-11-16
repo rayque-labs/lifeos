@@ -31,15 +31,9 @@ jobs:
       - name: Verify Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          test -d "$ANDROID_HOME"
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - name: Install frontend dependencies
         run: npm ci
-      - name: Install Capacitor and register native plugin dependencies
-        run: |
-          npm install --no-save --package-lock=false @capacitor/core@^7 @capacitor/cli@^7 @capacitor/android@^7 @capacitor-community/sqlite@^7 @capacitor/local-notifications@^7
-          npm pkg set 'dependencies.@capacitor/core=^7' 'dependencies.@capacitor/android=^7' 'dependencies.@capacitor-community/sqlite=^7' 'dependencies.@capacitor/local-notifications=^7'
-          npm pkg set 'devDependencies.@capacitor/cli=^7'
-          node -e "const p=require('./package.json'); for(const n of ['@capacitor-community/sqlite','@capacitor/local-notifications']) if(!p.dependencies[n]) process.exit(1)"
       - name: Preflight frontend lint and dependency checks
         run: |
           npm run lint
@@ -49,7 +43,7 @@ jobs:
           for (const name of ['react', 'react-dom', 'vite', 'typescript']) {
             if (!(p.dependencies?.[name] || p.devDependencies?.[name])) throw Error('Missing dependency: ' + name);
           }
-          for (const file of ['capacitor.config.ts', 'public/lifeos-original.png', 'src/components/GeminiConnectionSettings.tsx']) {
+          for (const file of ['capacitor.config.json', 'public/lifeos-original.png', 'src/components/GeminiConnectionSettings.tsx']) {
             if (!fs.existsSync(file)) throw Error('Missing required file: ' + file);
           }
           console.log('Frontend preflight OK');
@@ -60,22 +54,6 @@ jobs:
         run: npm run build
       - name: Generate Android project
         run: |
-          # Capacitor CLI v7 can fail to load TS config with newer TypeScript.
-          # Use the equivalent JSON config during CI to avoid the CommonJS loader.
-          test -f capacitor.config.ts
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          config = {
-              "appId": "com.rayquelabs.lifeos",
-              "appName": "LifeOS",
-              "webDir": "dist",
-              "android": {"backgroundColor": "#101010"},
-          }
-          Path("capacitor.config.json").write_text(json.dumps(config, indent=2))
-          Path("capacitor.config.ts").unlink()
-          PY
-          test -f capacitor.config.json
           python - <<'PY'
           import json
           from pathlib import Path
@@ -164,12 +142,19 @@ jobs:
           cd android
           ./gradlew :app:compileDebugJavaWithJavac --no-daemon --stacktrace 2>&1 | tee ../android-compile-preflight.log
           test ${PIPESTATUS[0]} -eq 0
-      - name: Build debug APK
+      - name: Run Android unit tests and build debug APK
         run: |
           cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee ../android-build.log
+          ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee ../android-build.log
           test ${PIPESTATUS[0]} -eq 0
+      - name: Verify debug APK
+        run: |
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          unzip -tq "$apk"
+          build_tools="$ANDROID_HOME/build-tools/35.0.0"
+          "$build_tools/apksigner" verify --verbose "$apk"
+          "$build_tools/aapt" dump badging "$apk" | grep "^package: name='com.rayquelabs.lifeos'"
       - name: Upload diagnostic logs even when build fails
         if: always()
         uses: actions/upload-artifact@v4
