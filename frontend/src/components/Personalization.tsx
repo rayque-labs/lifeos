@@ -14,7 +14,7 @@ export const sections = {
   finance: { label: 'Finanças', subtitle: 'Clareza para suas decisões.', presets: ['pulse','grid','horizon'] },
 } as const
 export type Section = keyof typeof sections
-const illustratedSections = new Set<Section>(['calendar', 'tasks', 'chat', 'projects', 'notes', 'finance'])
+const illustratedSections = new Set<Section>(['calendar', 'tasks', 'chat', 'projects', 'notes', 'finance', 'habits'])
 type ImageValue = { type: 'preset'; value: string } | { type: 'image'; value: string }
 const eventName = 'lifeos:personalization'
 function key(userId: string, field: string) { return 'lifeos:monolith:' + userId + ':' + field }

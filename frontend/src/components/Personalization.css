@@ -16,7 +16,6 @@
 /* Built-in section artwork: reproducible CSS assets shipped with every public clone.
    Personal banner uploads and selected presets continue to take precedence. */
 .mono-banner--dashboard{background-image:radial-gradient(ellipse at 84% 62%,#C5FF4A77,transparent 35%),repeating-radial-gradient(circle at 85% 55%,transparent 0 20px,#C5FF4A35 21px 22px,transparent 24px 47px),linear-gradient(130deg,#101010,#212923)}
-.mono-banner--habits{background-image:repeating-radial-gradient(circle at 84% 53%,transparent 0 20px,#C5FF4A55 21px 22px,transparent 24px 42px),radial-gradient(circle at 84% 53%,#C5FF4A66,transparent 43%)}
 @media(max-width:550px){.mono-banner{min-height:156px}.mono-banner__copy{max-width:76%}.mono-banner__copy p{line-height:1.4}}
 
 
@@ -26,6 +25,7 @@
 .mono-banner--projects { --section-banner: url('/banner-projetos.webp'); }
 .mono-banner--notes { --section-banner: url('/banner-notas.webp'); }
 .mono-banner--finance { --section-banner: url('/banner-financas.webp'); }
+.mono-banner--habits { --section-banner: url('/banner-habitos.webp'); }
 .mono-banner.mono-banner--illustrated {
   background-image: var(--section-banner);
   min-height: clamp(132px, 21vw, 216px);
