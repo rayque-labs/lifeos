@@ -23,6 +23,7 @@ export function AppLayout() {
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const activeTab = location.pathname === '/' ? 0 : location.pathname === '/calendar' ? 1 : location.pathname === '/tasks' ? 2 : location.pathname === '/finance' ? 3 : -1
   const title = titleByPath[location.pathname] || (location.pathname === '/settings' ? 'Configurações' : 'LifeOS')
   const leave = async () => { await logout(); navigate('/login') }
 
@@ -62,12 +63,13 @@ export function AppLayout() {
         <div className="hidden items-center gap-2 text-xs text-[#8a978d] sm:flex"><span className="h-2 w-2 rounded-full bg-[#86b764]" /> Seus dados estão sincronizados</div>
         <button onClick={() => navigate('/settings')} aria-label="Configurações" className="rounded-xl p-2 text-[#697a6e] hover:bg-white"><Settings2 size={18} /></button>
       </header>
-      <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10 lg:py-9"><Outlet /></div>
-      <nav aria-label="Navegação principal" className="mono-bottom-nav fixed bottom-0 inset-x-0 z-30 grid grid-cols-4 items-center px-2 pb-[env(safe-area-inset-bottom)] pt-2 md:hidden">
-        <NavLink end to="/" className="flex flex-col items-center gap-1 p-2 text-[10px]"><LayoutDashboard size={21}/>Início</NavLink>
-        <NavLink to="/calendar" className="flex flex-col items-center gap-1 p-2 text-[10px]"><CalendarDays size={21}/>Agenda</NavLink>
-        <Link to="/tasks" aria-label="Abrir tarefas" className="mx-auto -mt-4 flex h-13 w-13 items-center justify-center rounded-full bg-[#C5FF4A] text-[#101010] shadow-[0_0_20px_#C5FF4A44]"><Plus size={25}/></Link>
-        <NavLink to="/finance" className="flex flex-col items-center gap-1 p-2 text-[10px]"><CircleDollarSign size={21}/>Finanças</NavLink>
+      <div key={location.pathname} className="mono-page-transition mx-auto max-w-[1440px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10 lg:py-9"><Outlet /></div>
+      <nav aria-label="Navegação principal" className="mono-bottom-nav fixed bottom-0 inset-x-0 z-30 grid grid-cols-4 items-center px-2 pt-2 md:hidden">
+        <span aria-hidden="true" className="mono-nav-indicator" style={{ transform: `translateX(${activeTab < 0 ? 0 : activeTab * 100}%)`, opacity: activeTab < 0 ? 0 : 1 }} />
+        <NavLink end to="/" className={({isActive}) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><LayoutDashboard size={21}/><span>Início</span></NavLink>
+        <NavLink to="/calendar" className={({isActive}) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><CalendarDays size={21}/><span>Agenda</span></NavLink>
+        <Link to="/tasks" aria-label="Abrir tarefas" aria-current={location.pathname === '/tasks' ? 'page' : undefined} className={`mono-nav-item mono-nav-create ${location.pathname === '/tasks' ? 'is-active' : ''}`}><span className="mono-nav-create-circle"><Plus size={25}/></span><span className="sr-only">Tarefas</span></Link>
+        <NavLink to="/finance" className={({isActive}) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><CircleDollarSign size={21}/><span>Finanças</span></NavLink>
       </nav>
       <footer className="px-5 pb-6 text-center text-[11px] text-[#a0aaa2]">LifeOS · Um espaço para organizar o que importa</footer>
     </main>
