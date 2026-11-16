@@ -63,12 +63,11 @@ export function AppLayout() {
         <button onClick={() => navigate('/settings')} aria-label="Configurações" className="rounded-xl p-2 text-[#697a6e] hover:bg-white"><Settings2 size={18} /></button>
       </header>
       <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10 lg:py-9"><Outlet /></div>
-      <nav aria-label="Navegação principal" className="mono-bottom-nav fixed bottom-0 inset-x-0 z-30 grid grid-cols-5 items-center px-2 pb-[env(safe-area-inset-bottom)] pt-2 md:hidden">
+      <nav aria-label="Navegação principal" className="mono-bottom-nav fixed bottom-0 inset-x-0 z-30 grid grid-cols-4 items-center px-2 pb-[env(safe-area-inset-bottom)] pt-2 md:hidden">
         <NavLink end to="/" className="flex flex-col items-center gap-1 p-2 text-[10px]"><LayoutDashboard size={21}/>Início</NavLink>
         <NavLink to="/calendar" className="flex flex-col items-center gap-1 p-2 text-[10px]"><CalendarDays size={21}/>Agenda</NavLink>
-        <Link to="/tasks" aria-label="Abrir tarefas" className="mx-auto -mt-5 flex h-13 w-13 items-center justify-center rounded-full bg-[#C5FF4A] text-[#101010] shadow-[0_0_20px_#C5FF4A44]"><Plus size={25}/></Link>
+        <Link to="/tasks" aria-label="Abrir tarefas" className="mx-auto -mt-4 flex h-13 w-13 items-center justify-center rounded-full bg-[#C5FF4A] text-[#101010] shadow-[0_0_20px_#C5FF4A44]"><Plus size={25}/></Link>
         <NavLink to="/finance" className="flex flex-col items-center gap-1 p-2 text-[10px]"><CircleDollarSign size={21}/>Finanças</NavLink>
-        <button onClick={() => setOpen(true)} className="flex flex-col items-center gap-1 p-2 text-[10px] text-[#a3a5a9]"><Menu size={21}/>Mais</button>
       </nav>
       <footer className="px-5 pb-6 text-center text-[11px] text-[#a0aaa2]">LifeOS · Um espaço para organizar o que importa</footer>
     </main>
