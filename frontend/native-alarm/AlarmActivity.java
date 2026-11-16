@@ -40,7 +40,9 @@ public class AlarmActivity extends Activity {
     root.setGravity(Gravity.CENTER);
     root.setPadding(36, 40, 36, 40);
     root.setBackgroundColor(Color.rgb(16,16,16));
-    TextView brand = text("LIFEOS  •  ALARME", 16, 0xFFC5FF4A);
+    String agentName = getIntent().getStringExtra("agentName");
+    String displayAgent = agentName == null || agentName.trim().isEmpty() ? "LIFEOS" : agentName.trim();
+    TextView brand = text(displayAgent + "  •  ALARME", 16, 0xFFC5FF4A);
     TextView heading = text(title, 30, Color.WHITE);
     TextView transcript = text(message, 17, 0xFFCCCCCC);
     root.addView(brand); root.addView(heading); root.addView(transcript);
@@ -51,6 +53,8 @@ public class AlarmActivity extends Activity {
       Intent next = new Intent(this, AlarmReceiver.class);
       next.putExtra("id", id); next.putExtra("title", title);
       next.putExtra("category", getIntent().getStringExtra("category"));
+      next.putExtra("userName", getIntent().getStringExtra("userName"));
+      next.putExtra("agentName", getIntent().getStringExtra("agentName"));
       AlarmPersonality.markSnoozed(this, id);
       PendingIntent pending = PendingIntent.getBroadcast(this, id, next, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
       AlarmManager alarms = (AlarmManager) getSystemService(ALARM_SERVICE);
