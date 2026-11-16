@@ -13,7 +13,7 @@ export function MonolithSplash({ onComplete }: { onComplete: () => void }) {
     <div className="monolith-splash" role="status" aria-label="Iniciando LifeOS">
       <div className="monolith-splash__center">
         <div className="monolith-splash__float">
-          <img src="/lifeos-symbol.webp" alt="" onLoad={() => setReady(true)} onError={onComplete} className={ready ? 'monolith-splash__symbol is-ready' : 'monolith-splash__symbol'} />
+          <img src="/lifeos-symbol.svg" alt="" onLoad={() => setReady(true)} onError={onComplete} className={ready ? 'monolith-splash__symbol is-ready' : 'monolith-splash__symbol'} />
         </div>
         <div className="monolith-splash__name" aria-hidden="true">Life<span>OS</span></div>
         <div className="monolith-splash__tag" aria-hidden="true">SEU SISTEMA DE VIDA</div>
