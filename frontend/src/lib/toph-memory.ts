@@ -23,12 +23,12 @@ export function parseMemoryCommand(message: string): MemoryCommand | null {
   return null
 }
 
-function memoryKeys(accountId: string) {
+function memoryKeys(accountId: number) {
   const name = 'toph-memory:' + accountId
   return [name, name + ':key'] as const
 }
 
-export function executeMemoryCommand(command: MemoryCommand, accountId: string): Promise<string> {
+export function executeMemoryCommand(command: MemoryCommand, accountId: number): Promise<string> {
   const run = pending.then(async () => {
     const [name, key] = memoryKeys(accountId)
     if (command.kind === 'clear') {
@@ -61,7 +61,7 @@ export function executeMemoryCommand(command: MemoryCommand, accountId: string):
   return run
 }
 
-export async function loadMemoryContext(accountId: string, message: string): Promise<string[]> {
+export async function loadMemoryContext(accountId: number, message: string): Promise<string[]> {
   await pending
   const notes = await loadEncrypted<string[]>(...memoryKeys(accountId)) ?? []
   const words = new Set(normalize(message).match(/[a-z0-9]{4,}/g) ?? [])
