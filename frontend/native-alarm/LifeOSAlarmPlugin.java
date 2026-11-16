@@ -19,6 +19,8 @@ public class LifeOSAlarmPlugin extends Plugin {
     intent.putExtra("id", id); intent.putExtra("title", title);
     intent.putExtra("speech", call.getString("speech", ""));
     intent.putExtra("category", call.getString("category", ""));
+    intent.putExtra("userName", call.getString("userName", ""));
+    intent.putExtra("agentName", call.getString("agentName", ""));
     AlarmPersonality.reset(getContext(), id);
     PendingIntent pending = PendingIntent.getBroadcast(getContext(), id, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     AlarmManager manager = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
