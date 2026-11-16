@@ -1,3 +1,4 @@
+import { openUsageAccessSettings, screenTimeSuggestion, usageAvailable, usagePermissionStatus } from '../lib/agent-usage'
 import { DEFAULT_AGENT_PREFERENCES, loadAgentPreferences, saveAgentPreferences, type AgentPreferences } from '../lib/agent-permissions'
 import { OfflineBackup } from '../components/OfflineBackup'
 import { ProfilePhotoEditor } from '../components/Personalization'
@@ -11,6 +12,7 @@ import { useAuth } from '../lib/auth'
 export function SettingsPage() {
   const { user, refreshUser, logout } = useAuth()
   const navigate = useNavigate()
+  const [usageInfo, setUsageInfo] = useState('Acesso ao tempo de tela ainda não verificado.')
   const [agentPrefs, setAgentPrefs] = useState<AgentPreferences>(() => user?.id ? loadAgentPreferences(user.id) : { ...DEFAULT_AGENT_PREFERENCES })
   const updateAgentPref = <K extends keyof AgentPreferences>(key: K, value: AgentPreferences[K]) => setAgentPrefs(current => ({ ...current, [key]: value }))
   const saveAgentPrefs = () => { if (!user?.id) return; saveAgentPreferences(user.id, agentPrefs); setMessage('Preferências do agente salvas neste dispositivo. Permissões do Android e conexões externas ainda precisam ser concedidas separadamente.'); setError('') }
@@ -71,6 +73,17 @@ export function SettingsPage() {
         </label>)}
         <p className="text-xs opacity-70">Nenhuma integração externa ou captura de mensagens está ativa nesta versão. Acesso de uso, notificações e Open Finance exigem autorizações próprias. Ações que alteram dados deverão passar por confirmação detalhada.</p>
         <Button type="button" onClick={saveAgentPrefs}>Salvar preferências do agente</Button>
+        <div className="rounded-xl border border-neutral-700 p-3 space-y-3">
+          <h3 className="font-semibold">Tempo de tela · Android</h3>
+          <p className="text-xs opacity-70">O LifeOS consulta somente o total de tempo de uso de hoje, quando você autorizar. Não lê o conteúdo de outros aplicativos.</p>
+          <p role="status" className="text-sm">{usageInfo}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" onClick={async () => { try { setUsageInfo(await usagePermissionStatus() ? 'Acesso autorizado pelo Android.' : 'Acesso ainda não autorizado.') } catch { setUsageInfo('Não foi possível verificar a permissão.') } }}>Verificar acesso</Button>
+            <Button type="button" variant="secondary" onClick={async () => { try { await openUsageAccessSettings(); setUsageInfo('Autorize o LifeOS nas configurações do Android e volte para testar.') } catch { setUsageInfo('Recurso disponível apenas no aplicativo Android.') } }}>Configurar no Android</Button>
+            <Button type="button" variant="secondary" onClick={async () => { if (!user?.id) return; try { const result = await screenTimeSuggestion(user.id); setUsageInfo('Uso de hoje: ' + result.minutes + ' minutos. ' + (result.suggestion?.message || 'Nenhuma pausa sugerida agora.')) } catch (reason) { setUsageInfo(reason instanceof Error ? reason.message : 'Falha ao consultar uso.') } }}>Testar sugestão</Button>
+          </div>
+          {!usageAvailable() && <p className="text-xs opacity-70">No navegador, a leitura de uso não está disponível.</p>}
+        </div>
       </div>
     </Card>
     <ProfilePhotoEditor />
