@@ -4,7 +4,7 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 
-public class AssistantPanelActivity extends MainActivity {
+public class AssistantConversationActivity extends MainActivity {
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);

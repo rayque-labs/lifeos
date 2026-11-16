@@ -1,3 +1,4 @@
+import { TophOverlaySettings } from '../components/TophOverlaySettings'
 import { GeminiConnectionSettings } from '../components/GeminiConnectionSettings'
 import { AgentVoiceSettings } from '../components/AgentVoiceSettings'
 import { clearSuggestionFeedback, readSuggestionFeedback } from '../lib/agent-feedback'
@@ -59,6 +60,7 @@ export function SettingsPage() {
     <PageHeading title="Configurações" description="Seu perfil e as opções de acesso da sua conta." />
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
     {message && <p role="status" className="mb-4 rounded-xl border border-[#d8e9cc] bg-[#f0f7e9] px-3.5 py-2.5 text-sm text-[#527544]">{message}</p>}
+    <TophOverlaySettings />
     <Card><div className="mb-4"><h2 className="font-semibold">Agente proativo · Percepção e permissões</h2><p className="mt-1 text-sm opacity-70">Configure o que o agente poderá sugerir. Ativar uma preferência não concede acesso ao Android, a mensagens ou a bancos.</p></div>
       <div className="space-y-4">
         <label className="block text-sm font-medium">Nível de iniciativa

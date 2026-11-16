@@ -1,5 +1,6 @@
 package com.rayquelabs.lifeos;
 
+import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -20,6 +21,7 @@ import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.graphics.RectF;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -38,7 +40,7 @@ import java.io.InputStream;
 public class AssistantOverlayService extends Service {
     private static final String CHANNEL = "lifeos_assistant_overlay";
     private static final String STOP = "com.rayquelabs.lifeos.STOP_OVERLAY";
-    private static AssistantOverlayService instance;
+    private static volatile AssistantOverlayService instance;
     private static int resumedActivities;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ContentObserver assistantChange = new ContentObserver(handler) {
@@ -51,6 +53,17 @@ public class AssistantOverlayService extends Service {
     private Bitmap artwork;
     private boolean showing;
     private boolean panelOpening;
+
+    static Intent permissionIntent(Context context) {
+        return new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.fromParts("package", context.getPackageName(), null));
+    }
+
+    static void startFrom(Activity activity) {
+        Intent service = new Intent(activity, AssistantOverlayService.class);
+        if (Build.VERSION.SDK_INT >= 26) activity.startForegroundService(service);
+        else activity.startService(service);
+    }
 
     static boolean isRunning() {
         return instance != null;
@@ -156,18 +169,20 @@ public class AssistantOverlayService extends Service {
             showing = true;
         } catch (WindowManager.BadTokenException | SecurityException error) {
             Log.e(CHANNEL, "A sobreposição da Toph foi bloqueada", error);
+            android.widget.Toast.makeText(this, "O Android bloqueou a Toph sobre outros apps.", android.widget.Toast.LENGTH_LONG).show();
             stopSelf();
         }
     }
 
     private void openConversation() {
+        if (!showing || panelOpening) return;
         if (!Settings.canDrawOverlays(this) || !isDefaultAssistant(this)) {
             updateMascot();
             return;
         }
         panelOpening = true;
         try {
-            startActivity(new Intent(this, AssistantPanelActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            startActivity(new Intent(this, AssistantConversationActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (RuntimeException error) {
             Log.w(CHANNEL, "O Android bloqueou a abertura do painel", error);
         } finally {

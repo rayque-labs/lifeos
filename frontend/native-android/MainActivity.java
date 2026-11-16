@@ -20,7 +20,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
-        if (!(this instanceof AssistantPanelActivity) && overlayDataChanged && getBridge() != null) {
+        if (!(this instanceof AssistantConversationActivity) && overlayDataChanged && getBridge() != null) {
             overlayDataChanged = false;
             getBridge().triggerWindowJSEvent("lifeos:overlay-data-changed");
         }

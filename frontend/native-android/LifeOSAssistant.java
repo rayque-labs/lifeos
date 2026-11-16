@@ -5,7 +5,6 @@ import android.app.role.RoleManager;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.os.Build;
-import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
@@ -30,7 +29,7 @@ public class LifeOSAssistant extends Plugin {
 
     @PluginMethod
     public void getPanelMode(PluginCall call) {
-        call.resolve(new JSObject().put("external", getActivity() instanceof AssistantPanelActivity));
+        call.resolve(new JSObject().put("external", getActivity() instanceof AssistantConversationActivity));
     }
 
     @PluginMethod
@@ -57,9 +56,7 @@ public class LifeOSAssistant extends Plugin {
             }
             try {
                 if (!Settings.canDrawOverlays(activity)) {
-                    Intent permission = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:" + activity.getPackageName()));
-                    startActivityForResult(call, permission, "overlayPermission");
+                    startActivityForResult(call, AssistantOverlayService.permissionIntent(activity), "overlayPermission");
                 } else {
                     startOverlay(activity, call);
                 }
@@ -81,8 +78,7 @@ public class LifeOSAssistant extends Plugin {
 
     private void startOverlay(Activity activity, PluginCall call) {
         try {
-            if (Build.VERSION.SDK_INT >= 26) activity.startForegroundService(new Intent(activity, AssistantOverlayService.class));
-            else activity.startService(new Intent(activity, AssistantOverlayService.class));
+            AssistantOverlayService.startFrom(activity);
             call.resolve(new JSObject().put("state", "started"));
         } catch (RuntimeException error) {
             call.reject("Abra o LifeOS e tente ativar a Toph novamente.");
@@ -92,7 +88,7 @@ public class LifeOSAssistant extends Plugin {
     @PluginMethod
     public void closePanel(PluginCall call) {
         Activity activity = getActivity();
-        if (!(activity instanceof AssistantPanelActivity)) {
+        if (!(activity instanceof AssistantConversationActivity)) {
             call.reject("O painel externo não está aberto.");
             return;
         }
@@ -107,7 +103,7 @@ public class LifeOSAssistant extends Plugin {
 
     @PluginMethod
     public void markOverlayDataChanged(PluginCall call) {
-        if (getActivity() instanceof AssistantPanelActivity) MainActivity.overlayDataChanged = true;
+        if (getActivity() instanceof AssistantConversationActivity) MainActivity.overlayDataChanged = true;
         call.resolve();
     }
 
