@@ -57,6 +57,14 @@ export function AgentVoiceSettings({ account, userId }: { account: string; userI
         <option value="elevenlabs">Voz clonada · ElevenLabs</option>
       </Select>
     </Field>
+    {preference.mode === 'system' && <Field label="Estilo da voz">
+      <Select disabled={busy} value={preference.retro ? 'retro' : 'default'} onChange={event => {
+        updatePreference({ ...preference, retro: event.target.value === 'retro' })
+      }}>
+        <option value="default">Padrão do aparelho</option>
+        <option value="retro">Retrô · inspirado na Miss Minutes</option>
+      </Select>
+    </Field>}
     {preference.mode === 'system' && !isAndroid && <Field label="Voz disponível">
       <Select value={preference.voiceURI} onChange={event => updatePreference({ ...preference, voiceURI: event.target.value })}>
         <option value="">Padrão do aparelho</option>

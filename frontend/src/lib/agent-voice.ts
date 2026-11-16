@@ -68,12 +68,12 @@ export async function saveLocalVoice(user: string, { endpoint, token, file }: Lo
   } satisfies LocalVoiceConfig)
 }
 
-export function voicePreference(user: string, oldUserId?: number | string): { mode: VoiceMode; voiceURI: string } {
+export function voicePreference(user: string, oldUserId?: number | string): { mode: VoiceMode; voiceURI: string; retro: boolean } {
   try {
     const raw = localStorage.getItem(`lifeos:voice:${user}`) ?? localStorage.getItem(`lifeos:agent:voice:v1:${oldUserId ?? ''}`)
     const value = JSON.parse(raw ?? 'null')
-    return { mode: value?.mode === 'elevenlabs' || value?.mode === 'lifeos' ? value.mode : 'system', voiceURI: value?.voiceURI ?? '' }
-  } catch { return { mode: 'system', voiceURI: '' } }
+    return { mode: value?.mode === 'elevenlabs' || value?.mode === 'lifeos' ? value.mode : 'system', voiceURI: value?.voiceURI ?? '', retro: value?.retro === true }
+  } catch { return { mode: 'system', voiceURI: '', retro: false } }
 }
 
 export function saveVoicePreference(user: string, preference: ReturnType<typeof voicePreference>) {
@@ -171,13 +171,14 @@ export async function speakVoice(text: string, user: string, oldUserId?: number 
   stopVoice()
   const request: NonNullable<typeof playback> = { controller: new AbortController() }
   playback = request
-  const { mode, voiceURI } = voicePreference(user, oldUserId)
+  const { mode, voiceURI, retro } = voicePreference(user, oldUserId)
   try {
     if (mode === 'system') {
-      if (isAndroid) { await nativeAssistant.speak({ text }); return }
+      if (isAndroid) { await nativeAssistant.speak({ text, retro }); return }
       if (!window.speechSynthesis) throw new Error('A voz do sistema está indisponível neste navegador.')
       const speech = new SpeechSynthesisUtterance(text)
       speech.lang = 'pt-BR'
+      if (retro) { speech.pitch = 1.18; speech.rate = 1.04 }
       speech.voice = window.speechSynthesis.getVoices().find(voice => voice.voiceURI === voiceURI) ?? null
       window.speechSynthesis.speak(speech)
       return

@@ -379,6 +379,9 @@ public class LifeOSAssistant extends Plugin {
         PluginCall call = pendingSpeech;
         pendingSpeech = null;
         if (call == null) return;
+        boolean retro = Boolean.TRUE.equals(call.getBoolean("retro"));
+        tts.setPitch(retro ? 1.18f : 1.0f);
+        tts.setSpeechRate(retro ? 1.04f : 1.0f);
         if (tts.setLanguage(Locale.forLanguageTag("pt-BR")) < TextToSpeech.LANG_AVAILABLE ||
             tts.speak(call.getString("text", ""), TextToSpeech.QUEUE_FLUSH, null, "lifeos") == TextToSpeech.ERROR) {
             call.reject("A voz em português não está disponível no Android.");

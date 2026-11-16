@@ -12,7 +12,7 @@ interface NativeAssistantPlugin {
   openExternal(options: { url: string }): Promise<void>
   controlDevice(options: { action: 'open' | 'up' | 'down' | 'tap' | 'type' | 'click' | 'search' | 'profile'; app: string; text?: string; x?: number; y?: number }): Promise<void>
   dictate(): Promise<{ text: string }>
-  speak(options: { text: string }): Promise<void>
+  speak(options: { text: string; retro?: boolean }): Promise<void>
   stop(): Promise<void>
 }
 
