@@ -4,6 +4,7 @@ import { CalendarClock, Check, Circle, Clock3, ListFilter, Pencil, Plus, RotateC
 import { Badge, Button, Card, EmptyState, ErrorMessage, Field, Input, LoadingState, PageHeading, Select, Textarea } from '../components/ui'
 import { get, patch, post, remove } from '../lib/api'
 import type { Task } from '../lib/types'
+import { alarmSpeech, cancelLifeOSAlarm, scheduleLifeOSAlarm } from '../lib/lifeosAlarm'
 
 const priorityTone = { high: 'red', medium: 'amber', low: 'green' } as const
 const statusLabel = { pending: 'Pendente', in_progress: 'Em andamento', completed: 'Concluída' } as const
@@ -47,20 +48,27 @@ export function TasksPage() {
       category: draft.category || null, due_at: draft.dueAt ? new Date(draft.dueAt).toISOString() : null,
       recurrence_rule: draft.recurrence }
     try {
-      if (editing) await patch(`/tasks/${editing}`, payload)
-      else await post('/tasks/', payload)
+      const saved = editing ? await patch<Task>(`/tasks/${editing}`, payload) : await post<Task>('/tasks/', payload)
+      const taskId = editing || saved?.id
+      if (taskId && draft.dueAt) {
+        const at = new Date(draft.dueAt).getTime()
+        if (at > Date.now()) {
+          try { await scheduleLifeOSAlarm({ id: taskId, at, title: draft.title, speech: alarmSpeech(draft.title, draft.category) }) }
+          catch (alarmError) { console.warn('Não foi possível agendar o alarme nativo:', alarmError) }
+        }
+      } else if (taskId) { await cancelLifeOSAlarm(taskId) }
       cancel(); await load()
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível salvar a tarefa.') }
     finally { setBusy(false) }
   }
   const changeStatus = async (task: Task) => {
     const next = task.status === 'completed' ? 'pending' : 'completed'
-    try { await patch(`/tasks/${task.id}`, { status: next }); await load() }
+    try { await patch(`/tasks/${task.id}`, { status: next }); if (next === 'completed') await cancelLifeOSAlarm(task.id); await load() }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível atualizar o status.') }
   }
   const deleteTask = async (task: Task) => {
     if (!window.confirm(`Excluir “${task.title}”?`)) return
-    try { await remove(`/tasks/${task.id}`); await load() }
+    try { await remove(`/tasks/${task.id}`); await cancelLifeOSAlarm(task.id); await load() }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível excluir a tarefa.') }
   }
 
