@@ -72,7 +72,7 @@ export function AppLayout() {
         <NavLink end to="/" className={({isActive}) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><LayoutDashboard size={21}/><span>Início</span></NavLink>
         <NavLink to="/calendar" className={({isActive}) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><CalendarDays size={21}/><span>Agenda</span></NavLink>
         <Link to="/tasks" aria-label="Abrir tarefas" aria-current={location.pathname === '/tasks' ? 'page' : undefined} className={`mono-nav-item mono-nav-create ${location.pathname === '/tasks' ? 'is-active' : ''}`}><span className="mono-nav-create-circle"><Plus size={25}/></span><span className="sr-only">Tarefas</span></Link>
-        <NavLink to="/finance" className={({isActive}) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><CircleDollarSign size={21}/><span>Finanças</span></NavLink>
+        <NavLink to="/assistant" className={({isActive}) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><MessageCircle size={21}/><span>Chat</span></NavLink>
       </nav>
       <footer className="px-5 pb-6 text-center text-[11px] text-[#a0aaa2]">LifeOS · Um espaço para organizar o que importa</footer>
     </main>
