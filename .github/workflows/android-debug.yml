@@ -119,11 +119,11 @@ jobs:
           from pathlib import Path
           p = Path('android/app/src/main/AndroidManifest.xml')
           s = p.read_text()
-          s = s.replace('<application', '<uses-permission android:name="android.permission.VIBRATE" /><uses-permission android:name="android.permission.POST_NOTIFICATIONS" /><uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" /><uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" /><application', 1)
+          s = s.replace('<application', '<uses-permission android:name="android.permission.VIBRATE" /><uses-permission android:name="android.permission.POST_NOTIFICATIONS" /><uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" /><uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" /><uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" /><application', 1)
           s = s.replace('</application>', '<receiver android:name=".AlarmReceiver" android:exported="false" /><activity android:name=".AlarmActivity" android:exported="false" android:showWhenLocked="true" android:turnScreenOn="true" android:theme="@android:style/Theme.Material.NoActionBar" /></application>', 1)
           p.write_text(s)
           main = Path('android/app/src/main/java/com/rayquelabs/lifeos/MainActivity.java')
-          s = main.read_text().replace('super.onCreate(savedInstanceState);', 'registerPlugin(LifeOSAlarmPlugin.class);\\n              super.onCreate(savedInstanceState);')
+          s = main.read_text().replace('super.onCreate(savedInstanceState);', 'registerPlugin(LifeOSAlarmPlugin.class);\n              registerPlugin(LifeOSUsagePlugin.class);\\n              super.onCreate(savedInstanceState);')
           s = s.replace('\\n', '\n')
           main.write_text(s)
           PY
