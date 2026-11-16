@@ -78,7 +78,7 @@ export function CalendarPage() {
         const start = new Date(draft.startsAt).getTime()
         for (const [index, minutes] of draft.reminders.entries()) {
           const at = start - Number(minutes) * 60000
-          if (at > Date.now()) {
+          if (draft.fullScreenAlert && at > Date.now()) {
             try {
               await scheduleLifeOSAlarm({
                 id: eventAlarmId(eventId, index), at, title: draft.title,
