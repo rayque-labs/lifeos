@@ -71,7 +71,7 @@ export function SectionBanner({ section }: { section: Section }) {
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Erro ao carregar imagem.') }
   }
   return <div className="mono-banner-wrap">
-    <div className={`mono-banner mono-banner--${section} mono-art-${preset}`} style={value?.type==='image'?{backgroundImage:`linear-gradient(90deg,#000b,#0003),url("${value.value}")`,backgroundSize:'cover',backgroundPosition:'center'}:undefined}>
+    <div className={`mono-banner ${!value ? `mono-banner--${section}` : ''} mono-art-${preset}`} style={value?.type==='image'?{backgroundImage:`linear-gradient(90deg,#000b,#0003),url("${value.value}")`,backgroundSize:'cover',backgroundPosition:'center'}:undefined}>
       <div className="mono-banner__art" aria-hidden="true"><i/><i/><i/></div>
       <div className="mono-banner__copy"><span className="mono-banner__eyebrow">LIFEOS / {info.label.toUpperCase()}</span><h2>{info.label}</h2><p>{info.subtitle}</p></div>
       <button className="mono-banner__edit" type="button" onClick={() => setEditing(!editing)} aria-expanded={editing} aria-label={`Personalizar banner de ${info.label}`}><Camera size={16}/> Personalizar</button>
