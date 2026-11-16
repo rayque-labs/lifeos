@@ -23,3 +23,13 @@ body{background:var(--mono-bg);color:var(--mono-text)}
 .app-shell .mono-bottom-nav a{color:#a3a5a9}
 .app-shell .mono-bottom-nav a:focus-visible{border-radius:12px}
 @media(max-width:767px){.app-shell main{padding-bottom:76px}.app-shell footer{display:none}}
+
+/* Mobile native immersive layout and legible actions */
+.app-shell .mono-bottom-nav{padding-bottom:max(8px,env(safe-area-inset-bottom));min-height:68px}
+.app-shell button:disabled{cursor:not-allowed;opacity:.5}
+.app-shell button[class*="bg-[#C5FF4A]"],.app-shell a[class*="bg-[#C5FF4A]"]{color:#101010!important}
+@media(max-width:767px){
+  .app-shell main{padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+  .app-shell header{height:60px}
+  .app-shell .mono-bottom-nav{border-radius:18px 18px 0 0}
+}
