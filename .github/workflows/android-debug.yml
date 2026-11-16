@@ -42,8 +42,22 @@ jobs:
         run: npm run build
       - name: Generate Android project
         run: |
-          # Preserve capacitor.config.ts: Capacitor needs appId, appName and webDir.
+          # Capacitor CLI v7 can fail to load TS config with newer TypeScript.
+          # Use the equivalent JSON config during CI to avoid the CommonJS loader.
           test -f capacitor.config.ts
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          config = {
+              "appId": "com.rayquelabs.lifeos",
+              "appName": "LifeOS",
+              "webDir": "dist",
+              "android": {"backgroundColor": "#101010"},
+          }
+          Path("capacitor.config.json").write_text(json.dumps(config, indent=2) + "\\n")
+          Path("capacitor.config.ts").unlink()
+          PY
+          test -f capacitor.config.json
           npx cap add android
           test -f android/gradlew
           npx cap sync android
