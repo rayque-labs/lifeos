@@ -1,3 +1,4 @@
+import { DEFAULT_AGENT_PREFERENCES, loadAgentPreferences, saveAgentPreferences, type AgentPreferences } from '../lib/agent-permissions'
 import { OfflineBackup } from '../components/OfflineBackup'
 import { ProfilePhotoEditor } from '../components/Personalization'
 import { useState, type FormEvent } from 'react'
@@ -10,6 +11,9 @@ import { useAuth } from '../lib/auth'
 export function SettingsPage() {
   const { user, refreshUser, logout } = useAuth()
   const navigate = useNavigate()
+  const [agentPrefs, setAgentPrefs] = useState<AgentPreferences>(() => user?.id ? loadAgentPreferences(user.id) : { ...DEFAULT_AGENT_PREFERENCES })
+  const updateAgentPref = <K extends keyof AgentPreferences>(key: K, value: AgentPreferences[K]) => setAgentPrefs(current => ({ ...current, [key]: value }))
+  const saveAgentPrefs = () => { if (!user?.id) return; saveAgentPreferences(user.id, agentPrefs); setMessage('Preferências do agente salvas neste dispositivo. Permissões do Android e conexões externas ainda precisam ser concedidas separadamente.'); setError('') }
   const [name, setName] = useState(user?.full_name || '')
   const [preferredName, setPreferredName] = useState(() => localStorage.getItem('lifeos:preferred-name:v1') || '')
   const [agentName, setAgentName] = useState(() => localStorage.getItem('lifeos:agent-name:v1') || '')
@@ -49,6 +53,26 @@ export function SettingsPage() {
     <PageHeading title="Configurações" description="Seu perfil e as opções de acesso da sua conta." />
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
     {message && <p role="status" className="mb-4 rounded-xl border border-[#d8e9cc] bg-[#f0f7e9] px-3.5 py-2.5 text-sm text-[#527544]">{message}</p>}
+    <Card><div className="mb-4"><h2 className="font-semibold">Agente proativo · Percepção e permissões</h2><p className="mt-1 text-sm opacity-70">Configure o que o agente poderá sugerir. Ativar uma preferência não concede acesso ao Android, a mensagens ou a bancos.</p></div>
+      <div className="space-y-4">
+        <label className="block text-sm font-medium">Nível de iniciativa
+          <select className="mt-2 w-full rounded-xl border border-neutral-600 bg-neutral-900 p-3 text-white" value={agentPrefs.initiative} onChange={event => updateAgentPref('initiative', event.target.value as AgentPreferences['initiative'])}>
+            <option value="discreta">Discreta — avisos essenciais</option><option value="moderada">Moderada — sugestões ocasionais</option><option value="ativa">Ativa — sugestões proativas</option>
+          </select>
+        </label>
+        {([
+          ['screenBreaks','Sugerir pausas após uso prolongado do celular'],
+          ['draftAnalysis','Analisar rascunhos compartilhados voluntariamente'],
+          ['messageNotifications','Analisar notificações de mensagens (futuro)'],
+          ['financialAnalysis','Analisar dados financeiros autorizados (futuro)'],
+        ] as const).map(([key,label]) => <label key={key} className="flex min-h-12 items-center gap-3 text-sm">
+          <input type="checkbox" checked={agentPrefs[key]} onChange={event => updateAgentPref(key,event.target.checked)} className="h-5 w-5 accent-lime-400" />
+          <span>{label}</span>
+        </label>)}
+        <p className="text-xs opacity-70">Nenhuma integração externa ou captura de mensagens está ativa nesta versão. Acesso de uso, notificações e Open Finance exigem autorizações próprias. Ações que alteram dados deverão passar por confirmação detalhada.</p>
+        <Button type="button" onClick={saveAgentPrefs}>Salvar preferências do agente</Button>
+      </div>
+    </Card>
     <ProfilePhotoEditor />
     {import.meta.env.VITE_OFFLINE_MODE === 'true' && <div className="mb-5"><OfflineBackup /></div>}
     {<div className="grid gap-5 xl:grid-cols-[1.1fr_.9fr]">
