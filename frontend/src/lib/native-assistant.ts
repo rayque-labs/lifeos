@@ -7,6 +7,9 @@ interface NativeAssistantPlugin {
   closePanel(options: { end: boolean }): Promise<void>
   markOverlayDataChanged(): Promise<void>
   openSettings(): Promise<void>
+  openAccessibilitySettings(): Promise<void>
+  openExternal(options: { url: string }): Promise<void>
+  controlDevice(options: { action: 'open' | 'up' | 'down' | 'tap' | 'type'; app: string; text?: string; x?: number; y?: number }): Promise<void>
   dictate(): Promise<{ text: string }>
   speak(options: { text: string }): Promise<void>
   stop(): Promise<void>

@@ -5,6 +5,7 @@ import android.app.role.RoleManager;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.os.Build;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
@@ -98,6 +99,92 @@ public class LifeOSAssistant extends Plugin {
             }
             call.resolve();
             activity.finish();
+        });
+    }
+
+    @PluginMethod
+    public void openAccessibilitySettings(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try {
+                getActivity().startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                call.resolve();
+            } catch (ActivityNotFoundException error) {
+                call.reject("Abra Acessibilidade nas Configurações do Android.");
+            }
+        });
+    }
+
+    @PluginMethod
+    public void openExternal(PluginCall call) {
+        Uri uri = Uri.parse(call.getString("url", ""));
+        if (!"https".equals(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null) {
+            call.reject("URL HTTPS inválida.");
+            return;
+        }
+        getActivity().runOnUiThread(() -> {
+            try {
+                getActivity().startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                call.resolve();
+            } catch (ActivityNotFoundException error) {
+                call.reject("O Android não encontrou um app para abrir o link.");
+            }
+        });
+    }
+
+    private String targetPackage(String name) {
+        if ("whatsapp".equals(name)) {
+            return getContext().getPackageManager().getLaunchIntentForPackage("com.whatsapp") != null
+                ? "com.whatsapp" : "com.whatsapp.w4b";
+        }
+        if ("chrome".equals(name)) return "com.android.chrome";
+        if ("agenda".equals(name)) return "com.google.android.calendar";
+        if ("calculadora".equals(name)) return "com.google.android.calculator";
+        if ("keep".equals(name)) return "com.google.android.keep";
+        return null;
+    }
+
+    @PluginMethod
+    public void controlDevice(PluginCall call) {
+        String action = call.getString("action", "");
+        getActivity().runOnUiThread(() -> {
+            String target = targetPackage(call.getString("app", ""));
+            Intent launcher = target == null ? null : getContext().getPackageManager().getLaunchIntentForPackage(target);
+            if (launcher == null) { call.reject("O Android não encontrou esse aplicativo."); return; }
+            if ("open".equals(action)) {
+                try {
+                    getActivity().startActivity(launcher);
+                    if (getActivity() instanceof AssistantConversationActivity) getActivity().finish();
+                    call.resolve();
+                } catch (ActivityNotFoundException error) { call.reject("Não foi possível abrir o aplicativo."); }
+                return;
+            }
+            if ("com.android.chrome".equals(target) || !("up".equals(action) || "down".equals(action) ||
+                "type".equals(action) || "tap".equals(action))) {
+                call.reject("Esse controle não está disponível para este aplicativo.");
+                return;
+            }
+            TophAccessibilityService service = TophAccessibilityService.connected;
+            if (service == null || Build.VERSION.SDK_INT < 24) {
+                call.reject("Ative Toph — controle do Android em Acessibilidade.");
+                return;
+            }
+            if (!(getActivity() instanceof AssistantConversationActivity)) {
+                call.reject("Abra a Toph flutuante por cima do aplicativo que deseja controlar.");
+                return;
+            }
+            String text = call.getString("text", "");
+            int x = call.getInt("x", -1);
+            int y = call.getInt("y", -1);
+            if (("tap".equals(action) && (x < 0 || x > 100 || y < 0 || y > 100)) ||
+                ("type".equals(action) && (text.trim().isEmpty() || text.length() > 500))) {
+                call.reject("Gesto ou texto inválido.");
+                return;
+            }
+            call.resolve();
+            getActivity().finish();
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (TophAccessibilityService.connected == service) service.perform(target, action, text, x, y);
+            }, 650);
         });
     }
 

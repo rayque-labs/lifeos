@@ -1,3 +1,4 @@
+import { MobileIntegrations } from '../components/MobileIntegrations'
 import { TophOverlaySettings } from '../components/TophOverlaySettings'
 import { GeminiConnectionSettings } from '../components/GeminiConnectionSettings'
 import { AgentVoiceSettings } from '../components/AgentVoiceSettings'
@@ -61,6 +62,7 @@ export function SettingsPage() {
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
     {message && <p role="status" className="mb-4 rounded-xl border border-[#d8e9cc] bg-[#f0f7e9] px-3.5 py-2.5 text-sm text-[#527544]">{message}</p>}
     <TophOverlaySettings />
+    {user && <div className="mb-4"><MobileIntegrations account={user.email} /></div>}
     <Card><div className="mb-4"><h2 className="font-semibold">Agente proativo · Percepção e permissões</h2><p className="mt-1 text-sm opacity-70">Configure o que o agente poderá sugerir. Ativar uma preferência não concede acesso ao Android, a mensagens ou a bancos.</p></div>
       <div className="space-y-4">
         <label className="block text-sm font-medium">Nível de iniciativa
@@ -77,7 +79,7 @@ export function SettingsPage() {
           <input type="checkbox" checked={agentPrefs[key]} onChange={event => updateAgentPref(key,event.target.checked)} className="h-5 w-5 accent-lime-400" />
           <span>{label}</span>
         </label>)}
-        <p className="text-xs opacity-70">Nenhuma integração externa ou captura de mensagens está ativa nesta versão. Acesso de uso, notificações e Open Finance exigem autorizações próprias. Ações que alteram dados deverão passar por confirmação detalhada.</p>
+        <p className="text-xs opacity-70">As opções de iniciativa controlam as sugestões da Toph. Configure as conexões e permissões na seção Integrações.</p>
         <Button type="button" onClick={saveAgentPrefs}>Salvar preferências do agente</Button>
         <GeminiConnectionSettings />
         {user?.id != null && <AgentVoiceSettings key={user.email} account={user.email} userId={user.id} />}

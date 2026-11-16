@@ -63,6 +63,17 @@ tts = "android.intent.action.TTS_SERVICE"
 if queries.find(f"intent/action[@{{{ANDROID}}}name='{tts}']") is None:
     update_element(ET.SubElement(queries, "intent"), "action", tts)
 
+controls = update_element(app, "service", ".TophAccessibilityService",
+    exported="true", permission="android.permission.BIND_ACCESSIBILITY_SERVICE",
+    label="Toph — controle do Android")
+control_action = "android.accessibilityservice.AccessibilityService"
+if controls.find(f"intent-filter/action[@{{{ANDROID}}}name='{control_action}']") is None:
+    update_element(ET.SubElement(controls, "intent-filter"), "action", control_action)
+update_element(controls, "meta-data", "android.accessibilityservice", resource="@xml/toph_accessibility")
+for package in ("com.whatsapp", "com.whatsapp.w4b", "com.android.chrome",
+                "com.google.android.calendar", "com.google.android.calculator", "com.google.android.keep"):
+    update_element(queries, "package", package)
+
 ET.indent(tree, space="    ")
 tree.write(manifest, encoding="utf-8", xml_declaration=True)
 
@@ -72,3 +83,5 @@ for source in native.glob("*.java"):
     shutil.copyfile(source, package_path / source.name)
 for style in ("overlay_styles.xml", "launch_styles.xml"):
     shutil.copyfile(native / style, root / "res/values" / f"lifeos_{style}")
+
+shutil.copyfile(native / "toph_accessibility.xml", root / "res/xml/toph_accessibility.xml")
