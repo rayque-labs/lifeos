@@ -13,7 +13,7 @@ export async function synchronizeEventNotifications(event: CalendarEvent | null,
   if (!id || !Number.isSafeInteger(id) || id < 1 || id > 130000000) return
   const existing = Array.from({ length: MAX_REMINDERS }, (_, index) => ({ id: notificationId(id, index) }))
   await LocalNotifications.cancel({ notifications: existing })
-  if (!event) return
+  if (!event || event.full_screen_alert) return
 
   const offsets = [...new Set((event.reminders ?? [0]).filter(n => Number.isFinite(n) && n >= 0))]
     .slice(0, MAX_REMINDERS)
