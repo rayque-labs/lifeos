@@ -23,16 +23,17 @@ public final class AlarmPersonality {
     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("snooze_" + id).apply();
   }
 
-  public static String announce(Context context, int id, String title, String category) {
+  public static String announce(Context context, int id, String title, String category, String userName) {
     String safeTitle = title == null || title.trim().isEmpty() ? "seu compromisso" : title.trim();
     String key = (safeTitle + " " + (category == null ? "" : category)).toLowerCase(Locale.ROOT);
     int snoozes = snoozes(context, id);
+    String address = userName == null || userName.trim().isEmpty() ? "" : userName.trim().replaceAll("[\\\\r\\\\n]", " ").substring(0, Math.min(40, userName.trim().length())) + ", ";
     // Medical and sensitive tasks must never be mocked, even after postponement.
     if (key.matches(".*(remédio|remedio|medicamento|médic|medic|consulta|hospital|terapia|emergência|emergencia|luto|funeral).*")) {
-      return "Atenção. Está na hora de " + safeTitle + ". Cuide disso com calma e atenção.";
+      return address + "atenção. Está na hora de " + safeTitle + ". Cuide disso com calma e atenção.";
     }
     if (snoozes >= 3) {
-      return "Olha só... já adiamos " + snoozes + " vezes. " + safeTitle + " ainda está esperando. Que tal resolver agora?";
+      return address + "olha só... já adiamos " + snoozes + " vezes. " + safeTitle + " ainda está esperando. Que tal resolver agora?";
     }
     if (snoozes > 0) {
       String[] again = {
@@ -40,10 +41,10 @@ public final class AlarmPersonality {
         "Eu respeitei seus cinco minutinhos. Agora é hora de " + safeTitle + ". Bora?",
         "Segunda chamada! " + safeTitle + " não desapareceu, viu?"
       };
-      return choose(again, id, snoozes);
+      return address + choose(again, id, snoozes);
     }
     if (key.matches(".*(trein|academia|exercício|exercicio|corrida|caminhada|musculação).*")) {
-      return choose(new String[]{
+      return address + choose(new String[]{
         "Ah, olha só... " + safeTitle + ". Vai levantar ou deixar a promessa para o ano que vem?",
         "Opa! Hora de " + safeTitle + ". Seu tênis já deve estar sentindo saudade.",
         "Adivinha quem apareceu? " + safeTitle + ". Eu sei, uma surpresa absolutamente inesperada!"
