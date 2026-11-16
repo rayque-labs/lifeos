@@ -1,24 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import './MonolithSplash.css'
 
-/** Intro visual only. The native Android splash should remain instantaneous. */
 export function MonolithSplash({ onComplete }: { onComplete: () => void }) {
-  const [ready, setReady] = useState(false)
   useEffect(() => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const timer = window.setTimeout(onComplete, reduceMotion ? 150 : 3200)
+    // Fallback if the opening animation is interrupted before animationend.
+    const timer = window.setTimeout(onComplete, reduceMotion ? 160 : 2450)
     return () => window.clearTimeout(timer)
   }, [onComplete])
+
   return (
-    <div className="monolith-splash" role="status" aria-label="Iniciando LifeOS">
-      <div className="monolith-splash__center">
-        <div className="monolith-splash__float">
-          <img src="/lifeos-original.png" alt="" onLoad={() => setReady(true)} onError={onComplete} className={ready ? 'monolith-splash__symbol is-ready' : 'monolith-splash__symbol'} />
+    <div className="monolith-splash" role="status" aria-label="Iniciando LifeOS"
+      onAnimationEnd={event => { if (event.target === event.currentTarget) onComplete() }}>
+      <div className="monolith-splash__center" aria-hidden="true">
+        <div className="monolith-splash__mark">
+          <img src="/lifeos-brand.jpg" alt="" width="1536" height="1536" fetchPriority="high" />
         </div>
-        <div className="monolith-splash__name" aria-hidden="true">Life<span>OS</span></div>
-        <div className="monolith-splash__tag" aria-hidden="true">SEU SISTEMA DE VIDA</div>
+        <div className="monolith-splash__name">Life<span>OS</span></div>
       </div>
-      <div className="monolith-splash__line" aria-hidden="true"><i /></div>
     </div>
   )
 }

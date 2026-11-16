@@ -3,6 +3,6 @@
   "appName": "LifeOS",
   "webDir": "dist",
   "android": {
-    "backgroundColor": "#101010"
+    "backgroundColor": "#000000"
   }
 }

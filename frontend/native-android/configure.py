@@ -24,6 +24,7 @@ app = base.find("application")
 main = app.find(f"activity[@{{{ANDROID}}}name='.MainActivity']") if app is not None else None
 if main is None:
     raise ValueError("MainActivity ausente no projeto Android gerado")
+main.set(f"{{{ANDROID}}}theme", "@style/LifeOSLaunchTheme")
 
 assist = "android.intent.action.ASSIST"
 old_component = ".AssistantPanelActivity"
@@ -69,4 +70,5 @@ package_path = root / "java/com/rayquelabs/lifeos"
 native = Path(__file__).parent
 for source in native.glob("*.java"):
     shutil.copyfile(source, package_path / source.name)
-shutil.copyfile(native / "overlay_styles.xml", root / "res/values/lifeos_overlay_styles.xml")
+for style in ("overlay_styles.xml", "launch_styles.xml"):
+    shutil.copyfile(native / style, root / "res/values" / f"lifeos_{style}")
