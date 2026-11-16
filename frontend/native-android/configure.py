@@ -70,7 +70,7 @@ control_action = "android.accessibilityservice.AccessibilityService"
 if controls.find(f"intent-filter/action[@{{{ANDROID}}}name='{control_action}']") is None:
     update_element(ET.SubElement(controls, "intent-filter"), "action", control_action)
 update_element(controls, "meta-data", "android.accessibilityservice", resource="@xml/toph_accessibility")
-for package in ("com.whatsapp", "com.whatsapp.w4b", "com.android.chrome",
+for package in ("com.whatsapp", "com.whatsapp.w4b", "com.android.chrome", "com.instagram.android", "com.facebook.katana", "com.facebook.lite",
                 "com.google.android.calendar", "com.google.android.calculator", "com.google.android.keep"):
     update_element(queries, "package", package)
 

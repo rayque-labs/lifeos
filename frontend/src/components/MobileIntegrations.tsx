@@ -113,7 +113,7 @@ export function MobileIntegrations({ account }: { account: string }) {
     <h2 className="font-semibold">Integrações</h2>
     {isAndroid && <details className="space-y-3">
       <summary className="cursor-pointer font-semibold">Controle do Android</summary>
-      <p className="text-sm opacity-75">Abra a Toph flutuante sobre o app desejado. Exemplos: “rolar para baixo no WhatsApp”, “digitar Olá no WhatsApp” e “tocar 50% 70% no WhatsApp”. Escolha o campo antes de ditar. Para abrir um app, diga “abrir calculadora”.</p>
+      <p className="text-sm opacity-75">Abra a Toph flutuante sobre um app compatível e peça “o que aparece nessa tela?”, “tocar em Pesquisar no Instagram” ou “rolar para baixo no Chrome”. Para digitar, selecione o campo primeiro. “Pesquisar energia solar no Chrome” abre os resultados.</p>
       <Button variant="secondary" onClick={() => void nativeAssistant.openAccessibilitySettings().catch(() => setNotice('Abra Acessibilidade nas configurações do Android e procure Toph.'))}>Configurar Acessibilidade</Button>
       {notice && <p role="status" className="text-sm">{notice}</p>}
     </details>}

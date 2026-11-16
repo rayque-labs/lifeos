@@ -136,11 +136,49 @@ public class LifeOSAssistant extends Plugin {
             return getContext().getPackageManager().getLaunchIntentForPackage("com.whatsapp") != null
                 ? "com.whatsapp" : "com.whatsapp.w4b";
         }
+        if ("instagram".equals(name)) return "com.instagram.android";
+        if ("facebook".equals(name)) {
+            return getContext().getPackageManager().getLaunchIntentForPackage("com.facebook.katana") != null
+                ? "com.facebook.katana" : "com.facebook.lite";
+        }
         if ("chrome".equals(name)) return "com.android.chrome";
         if ("agenda".equals(name)) return "com.google.android.calendar";
         if ("calculadora".equals(name)) return "com.google.android.calculator";
         if ("keep".equals(name)) return "com.google.android.keep";
         return null;
+    }
+
+    @PluginMethod
+    public void inspectScreen(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            TophAccessibilityService service = TophAccessibilityService.connected;
+            if (service == null) {
+                call.reject("Ative Toph — controle do Android em Acessibilidade.");
+            } else if (!(getActivity() instanceof AssistantConversationActivity)) {
+                call.reject("Abra a Toph flutuante sobre a tela que quer analisar.");
+            } else if (getActivity().getSystemService(android.app.KeyguardManager.class).isDeviceLocked()) {
+                call.reject("Desbloqueie o Android para analisar a tela.");
+            } else {
+                try {
+                    call.resolve(new JSObject().put("summary", service.describeScreen()));
+                } catch (IllegalStateException error) {
+                    call.reject(error.getMessage());
+                }
+            }
+        });
+    }
+
+    private void runWhenFocused(TophAccessibilityService service, String target, String action,
+                                String text, int x, int y, int remaining) {
+        if (TophAccessibilityService.connected != service) return;
+        if (service.targetFocused(target)) {
+            service.perform(target, action, text, x, y);
+        } else if (remaining > 0) {
+            new Handler(Looper.getMainLooper()).postDelayed(
+                () -> runWhenFocused(service, target, action, text, x, y, remaining - 1), 120);
+        } else {
+            service.notice("O aplicativo solicitado não voltou ao primeiro plano.");
+        }
     }
 
     @PluginMethod
@@ -150,16 +188,36 @@ public class LifeOSAssistant extends Plugin {
             String target = targetPackage(call.getString("app", ""));
             Intent launcher = target == null ? null : getContext().getPackageManager().getLaunchIntentForPackage(target);
             if (launcher == null) { call.reject("O Android não encontrou esse aplicativo."); return; }
-            if ("open".equals(action)) {
+            if ("open".equals(action) || "search".equals(action) || "profile".equals(action)) {
+                String value = call.getString("text", "").trim();
+                Intent destination = launcher;
+                if ("search".equals(action)) {
+                    if (!"com.android.chrome".equals(target) || value.isEmpty() || value.length() > 500) {
+                        call.reject("Informe um termo de pesquisa válido.");
+                        return;
+                    }
+                    Uri query = Uri.parse("https://www.google.com/search").buildUpon()
+                        .appendQueryParameter("q", value).build();
+                    destination = new Intent(Intent.ACTION_VIEW, query).setPackage(target);
+                } else if ("profile".equals(action)) {
+                    if (!"com.instagram.android".equals(target) || !value.matches("[A-Za-z0-9_][A-Za-z0-9_.]{0,29}")) {
+                        call.reject("Informe um usuário válido do Instagram.");
+                        return;
+                    }
+                    Uri profile = Uri.parse("https://www.instagram.com").buildUpon().appendPath(value).build();
+                    destination = new Intent(Intent.ACTION_VIEW, profile).setPackage(target);
+                }
                 try {
-                    getActivity().startActivity(launcher);
+                    getActivity().startActivity(destination);
                     if (getActivity() instanceof AssistantConversationActivity) getActivity().finish();
                     call.resolve();
-                } catch (ActivityNotFoundException error) { call.reject("Não foi possível abrir o aplicativo."); }
+                } catch (ActivityNotFoundException error) {
+                    call.reject("O aplicativo não conseguiu abrir esse destino.");
+                }
                 return;
             }
-            if ("com.android.chrome".equals(target) || !("up".equals(action) || "down".equals(action) ||
-                "type".equals(action) || "tap".equals(action))) {
+            if (target.startsWith("com.facebook.") || !("up".equals(action) || "down".equals(action) ||
+                "type".equals(action) || "tap".equals(action) || "click".equals(action))) {
                 call.reject("Esse controle não está disponível para este aplicativo.");
                 return;
             }
@@ -176,15 +234,14 @@ public class LifeOSAssistant extends Plugin {
             int x = call.getInt("x", -1);
             int y = call.getInt("y", -1);
             if (("tap".equals(action) && (x < 0 || x > 100 || y < 0 || y > 100)) ||
-                ("type".equals(action) && (text.trim().isEmpty() || text.length() > 500))) {
+                (("type".equals(action) || "click".equals(action)) && (text.trim().isEmpty() || text.length() > 500))) {
                 call.reject("Gesto ou texto inválido.");
                 return;
             }
             call.resolve();
             getActivity().finish();
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                if (TophAccessibilityService.connected == service) service.perform(target, action, text, x, y);
-            }, 650);
+            new Handler(Looper.getMainLooper()).postDelayed(
+                () -> runWhenFocused(service, target, action, text, x, y, 14), 150);
         });
     }
 
