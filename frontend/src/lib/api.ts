@@ -28,10 +28,10 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     const result = offlineRequest<T>(path, method, body)
     if (method !== 'GET') {
       await persistOfflineStorage()
-      if (/^\\/calendar\\/events\\/(?:\\d+)?\\/?$/.test(path)) {
-        if (method === 'DELETE') {
-          const id = Number(path.match(/\\d+/)?.[0])
-          await synchronizeEventNotifications(null, id)
+      const eventPath = path.split('?')[0].split('/').filter(Boolean)
+      if (eventPath[0] === 'calendar' && eventPath[1] === 'events' && eventPath.length <= 3) {
+        if (method === 'DELETE' && eventPath.length === 3) {
+          await synchronizeEventNotifications(null, Number(eventPath[2]))
         } else if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
           await synchronizeEventNotifications(result as CalendarEvent)
         }
