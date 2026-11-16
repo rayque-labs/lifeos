@@ -10,6 +10,7 @@ public class AlarmReceiver extends android.content.BroadcastReceiver {
     String title = intent.getStringExtra("title");
     if (title == null) title = "Lembrete LifeOS";
     int id = intent.getIntExtra("id", 1);
+    intent.putExtra("speech", AlarmPersonality.announce(context, id, title, intent.getStringExtra("category")));
     NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
     if (Build.VERSION.SDK_INT >= 26) {
       NotificationChannel channel = new NotificationChannel(CHANNEL, "Alarmes LifeOS", NotificationManager.IMPORTANCE_HIGH);
