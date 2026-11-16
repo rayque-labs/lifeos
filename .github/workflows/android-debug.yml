@@ -34,8 +34,12 @@ jobs:
           test -d "$ANDROID_HOME"
       - name: Install frontend dependencies
         run: npm ci
-      - name: Install Capacitor build tools
-        run: npm install --no-save --package-lock=false @capacitor/core@^7 @capacitor/cli@^7 @capacitor/android@^7 @capacitor-community/sqlite@^7 @capacitor/local-notifications@^7
+      - name: Install Capacitor and register native plugin dependencies
+        run: |
+          npm install --no-save --package-lock=false @capacitor/core@^7 @capacitor/cli@^7 @capacitor/android@^7 @capacitor-community/sqlite@^7 @capacitor/local-notifications@^7
+          npm pkg set 'dependencies.@capacitor/core=^7' 'dependencies.@capacitor/android=^7' 'dependencies.@capacitor-community/sqlite=^7' 'dependencies.@capacitor/local-notifications=^7'
+          npm pkg set 'devDependencies.@capacitor/cli=^7'
+          node -e "const p=require('./package.json'); for(const n of ['@capacitor-community/sqlite','@capacitor/local-notifications']) if(!p.dependencies[n]) process.exit(1)"
       - name: Build offline web app
         env:
           VITE_OFFLINE_MODE: 'true'
