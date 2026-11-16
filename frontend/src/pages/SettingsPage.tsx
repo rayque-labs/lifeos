@@ -1,3 +1,4 @@
+import { clearSuggestionFeedback, readSuggestionFeedback } from '../lib/agent-feedback'
 import { openUsageAccessSettings, screenTimeSuggestion, usageAvailable, usagePermissionStatus } from '../lib/agent-usage'
 import { DEFAULT_AGENT_PREFERENCES, loadAgentPreferences, saveAgentPreferences, type AgentPreferences } from '../lib/agent-permissions'
 import { OfflineBackup } from '../components/OfflineBackup'
@@ -12,6 +13,7 @@ import { useAuth } from '../lib/auth'
 export function SettingsPage() {
   const { user, refreshUser, logout } = useAuth()
   const navigate = useNavigate()
+  const [feedbackCount, setFeedbackCount] = useState(() => user?.id ? readSuggestionFeedback(user.id).length : 0)
   const [usageInfo, setUsageInfo] = useState('Acesso ao tempo de tela ainda não verificado.')
   const [agentPrefs, setAgentPrefs] = useState<AgentPreferences>(() => user?.id ? loadAgentPreferences(user.id) : { ...DEFAULT_AGENT_PREFERENCES })
   const updateAgentPref = <K extends keyof AgentPreferences>(key: K, value: AgentPreferences[K]) => setAgentPrefs(current => ({ ...current, [key]: value }))
@@ -73,6 +75,15 @@ export function SettingsPage() {
         </label>)}
         <p className="text-xs opacity-70">Nenhuma integração externa ou captura de mensagens está ativa nesta versão. Acesso de uso, notificações e Open Finance exigem autorizações próprias. Ações que alteram dados deverão passar por confirmação detalhada.</p>
         <Button type="button" onClick={saveAgentPrefs}>Salvar preferências do agente</Button>
+        <div className="rounded-xl border border-neutral-700 p-3 space-y-2">
+          <h3 className="font-semibold">Memória de sugestões</h3>
+          <p className="text-sm opacity-75">O agente guarda localmente até 100 respostas às sugestões para ajustar a frequência. Nenhuma dessas respostas é enviada ao servidor.</p>
+          <p className="text-sm" role="status">Respostas armazenadas: {feedbackCount}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" onClick={() => { if (user?.id) setFeedbackCount(readSuggestionFeedback(user.id).length) }}>Atualizar contagem</Button>
+            <Button type="button" variant="secondary" onClick={() => { if (!user?.id || !window.confirm('Apagar todo o histórico local de respostas do agente?')) return; clearSuggestionFeedback(user.id); setFeedbackCount(0); setMessage('Histórico de sugestões apagado deste dispositivo.') }}>Apagar histórico</Button>
+          </div>
+        </div>
         <div className="rounded-xl border border-neutral-700 p-3 space-y-3">
           <h3 className="font-semibold">Tempo de tela · Android</h3>
           <p className="text-xs opacity-70">O LifeOS consulta somente o total de tempo de uso de hoje, quando você autorizar. Não lê o conteúdo de outros aplicativos.</p>
