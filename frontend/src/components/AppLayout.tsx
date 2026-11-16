@@ -57,11 +57,11 @@ export function AppLayout() {
       </div>
     </aside>
     <main className="min-w-0 flex-1 md:ml-0">
-      <header className="sticky top-0 z-20 flex h-[68px] items-center gap-3 border-b border-[#e8ebe5] bg-[#f7f8f4]/90 px-4 backdrop-blur-xl sm:px-7 lg:px-10">
-        <button aria-label="Abrir menu" onClick={() => setOpen(true)} className="rounded-xl p-2 text-[#40564a] hover:bg-white md:hidden"><Menu size={19} /></button>
-        <div className="flex min-w-0 flex-1 items-center gap-2 text-xs text-[#94a097]"><span className="hidden sm:inline">LifeOS</span><ChevronRight size={13} className="hidden sm:inline" /><span className="truncate font-semibold text-[#40564a]">{title}</span></div>
+      <header className="mono-top-header sticky top-0 z-20 flex items-center gap-3 border-b border-[#e8ebe5] bg-[#f7f8f4]/90 px-4 backdrop-blur-xl sm:px-7 lg:px-10">
+        <button aria-label="Abrir menu" onClick={() => setOpen(true)} className="mono-header-action rounded-xl p-2 text-[#40564a] hover:bg-white md:hidden"><Menu size={24} /></button>
+        <div className="mono-header-title flex min-w-0 flex-1 items-center gap-2 text-xs text-[#94a097]"><span className="hidden sm:inline">LifeOS</span><ChevronRight size={13} className="hidden sm:inline" /><span className="truncate font-semibold text-[#40564a]">{title}</span></div>
         <div className="hidden items-center gap-2 text-xs text-[#8a978d] sm:flex"><span className="h-2 w-2 rounded-full bg-[#86b764]" /> Seus dados estão sincronizados</div>
-        <button onClick={() => navigate('/settings')} aria-label="Configurações" className="rounded-xl p-2 text-[#697a6e] hover:bg-white"><Settings2 size={18} /></button>
+        <button onClick={() => navigate('/settings')} aria-label="Configurações" className="mono-header-action rounded-xl p-2 text-[#697a6e] hover:bg-white"><Settings2 size={23} /></button>
       </header>
       <div key={location.pathname} className="mono-page-transition mx-auto max-w-[1440px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10 lg:py-9"><Outlet /></div>
       <nav aria-label="Navegação principal" className="mono-bottom-nav fixed bottom-0 inset-x-0 z-30 grid grid-cols-4 items-center px-2 pt-2 md:hidden">
