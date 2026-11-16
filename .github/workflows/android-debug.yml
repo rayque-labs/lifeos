@@ -44,7 +44,6 @@ jobs:
         run: |
           # Preserve capacitor.config.ts: Capacitor needs appId, appName and webDir.
           test -f capacitor.config.ts
-          npm pkg set 'dependencies.@capacitor/core=^7' 'dependencies.@capacitor/android=^7' 'dependencies.@capacitor-community/sqlite=^7' 'dependencies.@capacitor/local-notifications=^7'
           npx cap add android
           test -f android/gradlew
           npx cap sync android
@@ -110,14 +109,27 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew :app:processDebugMainManifest --no-daemon
+          ./gradlew :app:processDebugMainManifest --no-daemon --stacktrace 2>&1 | tee ../android-manifest-build.log
+          test ${PIPESTATUS[0]} -eq 0
           find app/build/intermediates -name AndroidManifest.xml -path '*merged_manifests*' -print | head -5
       - name: Build debug APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee ../android-build.log
+          test ${PIPESTATUS[0]} -eq 0
+      - name: Upload diagnostic logs even when build fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifeos-android-build-logs
+          path: |
+            frontend/android-build.log
+            frontend/android-manifest-build.log
+            frontend/android/app/build/outputs/logs/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: lifeos-diagnostic-minimal-apk
           path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
