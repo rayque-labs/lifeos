@@ -1,4 +1,4 @@
-type AlarmOptions = { id: number; at: number; title: string; speech: string; category?: string }
+type AlarmOptions = { id: number; at: number; title: string; speech: string; category?: string; userName?: string; agentName?: string }
 type AlarmPlugin = {
   schedule(options: AlarmOptions): Promise<{ exact: boolean }>
   cancel(options: { id: number }): Promise<void>
@@ -10,7 +10,10 @@ function plugin(): AlarmPlugin | null {
 
 export async function scheduleLifeOSAlarm(options: AlarmOptions): Promise<{ exact: boolean } | null> {
   const nativeAlarm = plugin()
-  return nativeAlarm ? nativeAlarm.schedule(options) : null
+  if (!nativeAlarm) return null
+  const userName = localStorage.getItem('lifeos:preferred-name:v1') || ''
+  const agentName = localStorage.getItem('lifeos:agent-name:v1') || ''
+  return nativeAlarm.schedule({ ...options, userName, agentName })
 }
 export async function cancelLifeOSAlarm(id: number): Promise<void> {
   const nativeAlarm = plugin()
