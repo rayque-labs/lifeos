@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { speakVoice, stopVoice } from '../lib/agent-voice'
 import { isAndroid, nativeAssistant } from '../lib/native-assistant'
+import { executeMemoryCommand, loadMemoryContext, parseMemoryCommand } from '../lib/toph-memory'
 import { useAuth } from '../lib/auth'
 import { executeAssistantAction, parseAssistantAction } from '../lib/assistant-actions'
 import { Mic, MicOff, Send, Volume2, VolumeX, Trash2 } from 'lucide-react'
@@ -77,29 +78,37 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
   const send = async (override?: string) => {
     const text = (override ?? draft).trim()
     if (!text || request.current || !loaded) return
-    const action = parseAssistantAction(text)
-    if (!action && AI_PROVIDERS[provider].requiresKey && !key.trim()) {
+    const memory = parseMemoryCommand(text)
+    if (memory && !user) {
+      setError('Entre na sua conta para usar a memória da Toph.')
+      return
+    }
+    const action = memory ? null : parseAssistantAction(text)
+    const local = !!(memory || action)
+    if (!local && AI_PROVIDERS[provider].requiresKey && !key.trim()) {
       setError('Conecte uma API de IA para conversar. Os comandos de tarefas já estão disponíveis.')
       return
     }
     setDraft('')
     setError('')
     const history: Message[] = [...messages.filter(m => m !== INTRO && !m.local).map(({ role, text }) => ({ role, text })), { role: 'user', text }]
-    setMessages(prev => [...prev, { role: 'user', text, local: !!action }])
-    const status = action?.kind === 'create-task' ? 'Criando tarefa…' : action ? 'Executando comando…' : 'Preparando resposta…'
+    setMessages(prev => [...prev, { role: 'user', text, local }])
+    const status = memory ? 'Atualizando memória…' : action?.kind === 'create-task' ? 'Criando tarefa…' : action ? 'Executando comando…' : 'Preparando resposta…'
     setBusy(status)
     const controller = new AbortController()
     request.current = controller
-    const timeout = action ? undefined : window.setTimeout(() => controller.abort('timeout'), 25000)
+    const timeout = local ? undefined : window.setTimeout(() => controller.abort('timeout'), 25000)
     const announce = action ? window.setTimeout(() => {
       if (voiceEnabled.current && !controller.signal.aborted) void speak(status)
     }, 800) : undefined
     try {
-      const answer = action ? await executeAssistantAction(action, user?.email)
-        : await generateAIReply({ provider, apiKey: key, model, endpoint }, history, controller.signal)
+      const context = !local && user ? await loadMemoryContext(user.id, text).catch(() => []) : []
+      const answer = memory && user ? await executeMemoryCommand(memory, user.id)
+        : action ? await executeAssistantAction(action, user?.email)
+        : await generateAIReply({ provider, apiKey: key, model, endpoint }, history, controller.signal, context)
       if (controller.signal.aborted) return
-      const privateResult = action?.kind === 'bank-balances' || action?.kind === 'screen'
-      setMessages(prev => [...prev, { role: 'model', text: answer, local: !!action, private: privateResult }])
+      const privateResult = memory?.kind === 'list' || action?.kind === 'bank-balances' || action?.kind === 'screen'
+      setMessages(prev => [...prev, { role: 'model', text: answer, local, private: privateResult }])
       if (voiceEnabled.current && !privateResult) void speak(answer)
     } catch (reason) {
       if (controller.signal.reason === 'timeout') setError('A IA demorou para responder.')
@@ -166,6 +175,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     <div aria-live="polite" className="assistant-messages flex min-h-40 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-[#34363a] bg-[#151617] p-3">{messages.map((m,i) => <div key={i} className={m.role === 'user' ? 'assistant-user-message ml-auto max-w-[90%] rounded-2xl px-4 py-3' : 'mr-auto max-w-[90%] rounded-2xl bg-[#282a2c] px-4 py-3 text-[#F1F1ED]'}><p className="whitespace-pre-wrap text-sm">{m.text}</p>{m.role === 'model' && !m.private && <button type="button" aria-label="Ouvir resposta" className="mt-2 opacity-70" onClick={() => void speak(m.text)}><Volume2 size={15}/></button>}</div>)}{busy && <p className="text-sm text-[#a3a5a9]">{busy}</p>}<div ref={bottom}/></div>
     {error && <p role="alert" className="text-sm text-[#ff8990]">{error}</p>}
     {floating && isAndroid && <button type="button" disabled={!!busy || !loaded} onClick={() => void send('analisar a tela')} className="self-start rounded-xl border border-[#45454a] px-3 py-2 text-sm">Analisar a tela</button>}
+    {!floating && <p className="text-xs text-[#a3a5a9]">Diga “Lembre que…” para guardar algo, “O que você lembra?” para ver e “Limpar memória” para apagar tudo. Algumas notas podem ser usadas nas respostas do provedor de IA configurado.</p>}
     <form onSubmit={e => {e.preventDefault();void send()}} className="flex gap-2"><button type="button" aria-label={listening && !isAndroid ? 'Parar microfone' : 'Ditado por voz'} disabled={isAndroid && listening} onClick={() => void toggleListening()} className="rounded-xl border border-[#45454a] p-3">{listening ? <MicOff size={20} className="text-[#C5FF4A]"/> : <Mic size={20}/>}</button><input aria-label="Mensagem" value={draft} onChange={e => setDraft(e.target.value)} placeholder="Converse com a assistente…" className="min-w-0 flex-1 rounded-xl border border-[#45454a] bg-[#242628] p-3 text-white"/><button type="submit" disabled={!!busy || !loaded || !draft.trim()} aria-label="Enviar mensagem" className="rounded-xl bg-[#C5FF4A] p-3 text-[#101010] disabled:opacity-40"><Send size={20}/></button></form>
     <p className="text-xs text-[#9a9da0]">Toque no microfone para ditar. {!floating && <Link to="/settings" className="mono-accent underline">Configurar voz e assistente</Link>}</p>
   </div>
