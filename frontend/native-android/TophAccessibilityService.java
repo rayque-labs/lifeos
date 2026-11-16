@@ -53,7 +53,11 @@ public class TophAccessibilityService extends AccessibilityService {
             root = candidate;
             break;
         }
-        if (root == null) throw new IllegalStateException("Não consegui identificar o app atrás da Toph.");
+        if (root == null) {
+            AccessibilityNodeInfo active = getRootInActiveWindow();
+            if (active != null && !getPackageName().contentEquals(String.valueOf(active.getPackageName()))) root = active;
+        }
+        if (root == null) return null;
         String app = supportedApp(root.getPackageName());
         if (app == null) throw new IllegalStateException("A leitura da tela não está habilitada para esse aplicativo.");
         LinkedHashSet<String> texts = new LinkedHashSet<>();
@@ -65,7 +69,7 @@ public class TophAccessibilityService extends AccessibilityService {
             AccessibilityNodeInfo node = nodes.removeFirst();
             if (!node.isVisibleToUser() || node.isPassword() || node.isEditable() ||
                 !String.valueOf(root.getPackageName()).contentEquals(String.valueOf(node.getPackageName()))) continue;
-            String label = ttsLabel(node);
+            String label = nodeLabel(node);
             if (!label.isEmpty()) {
                 if (node.isClickable() && controls.size() < 8) controls.add(label);
                 else if (!node.isClickable() && texts.size() < 12) texts.add(label);
@@ -83,7 +87,7 @@ public class TophAccessibilityService extends AccessibilityService {
         return result;
     }
 
-    private String ttsLabel(AccessibilityNodeInfo node) {
+    private String nodeLabel(AccessibilityNodeInfo node) {
         CharSequence raw = node.getText();
         if (raw == null || raw.length() == 0) raw = node.getContentDescription();
         if (raw == null) return "";
@@ -106,7 +110,7 @@ public class TophAccessibilityService extends AccessibilityService {
             AccessibilityNodeInfo node = nodes.removeFirst();
             if (!node.isVisibleToUser() || node.isPassword() || node.isEditable() ||
                 !String.valueOf(root.getPackageName()).contentEquals(String.valueOf(node.getPackageName()))) continue;
-            if (ttsLabel(node).toLowerCase(Locale.ROOT).equals(label)) {
+            if (nodeLabel(node).toLowerCase(Locale.ROOT).equals(label)) {
                 AccessibilityNodeInfo button = node;
                 for (int step = 0; button != null && step < 5; step++, button = button.getParent()) {
                     if (!String.valueOf(root.getPackageName()).contentEquals(String.valueOf(button.getPackageName()))) break;

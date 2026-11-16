@@ -11,6 +11,8 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
+import android.view.Window;
+import android.view.WindowManager;
 import androidx.activity.result.ActivityResult;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -160,12 +162,49 @@ public class LifeOSAssistant extends Plugin {
                 call.reject("Desbloqueie o Android para analisar a tela.");
             } else {
                 try {
-                    call.resolve(new JSObject().put("summary", service.describeScreen()));
+                    String summary = service.describeScreen();
+                    if (summary != null) call.resolve(new JSObject().put("summary", summary));
+                    else inspectBehindPanel(call, service);
                 } catch (IllegalStateException error) {
                     call.reject(error.getMessage());
                 }
             }
         });
+    }
+
+    private boolean screenReadPending;
+
+    private void inspectBehindPanel(PluginCall call, TophAccessibilityService service) {
+        if (screenReadPending) {
+            call.reject("Uma leitura de tela já está em andamento.");
+            return;
+        }
+        screenReadPending = true;
+        Window window = getActivity().getWindow();
+        WindowManager.LayoutParams previous = new WindowManager.LayoutParams();
+        previous.copyFrom(window.getAttributes());
+        WindowManager.LayoutParams temporary = new WindowManager.LayoutParams();
+        temporary.copyFrom(previous);
+        temporary.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+        temporary.alpha = 0f;
+        window.setAttributes(temporary);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            try {
+                if (destroyed || TophAccessibilityService.connected != service ||
+                    getActivity().getSystemService(android.app.KeyguardManager.class).isDeviceLocked()) {
+                    call.reject("A leitura da tela foi interrompida.");
+                    return;
+                }
+                String summary = service.describeScreen();
+                if (summary == null) call.reject("Não consegui identificar o app atrás da Toph.");
+                else call.resolve(new JSObject().put("summary", summary));
+            } catch (IllegalStateException error) {
+                call.reject(error.getMessage());
+            } finally {
+                if (!destroyed) window.setAttributes(previous);
+                screenReadPending = false;
+            }
+        }, 240);
     }
 
     private void runWhenFocused(TophAccessibilityService service, String target, String action,
