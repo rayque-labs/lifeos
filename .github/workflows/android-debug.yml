@@ -101,27 +101,36 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import xml.etree.ElementTree as ET
+          import re
           manifest = Path('android/app/src/main/AndroidManifest.xml')
-          ns = '{http://schemas.android.com/apk/res/android}'
-          tree = ET.parse(manifest)
-          root = tree.getroot()
-          # Diagnostic only: remove special permissions inherited from dependencies.
-          forbidden = {
-            'android.permission.PACKAGE_USAGE_STATS',
-            'android.permission.USE_FULL_SCREEN_INTENT',
-            'android.permission.SCHEDULE_EXACT_ALARM',
-            'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
-            'android.permission.SYSTEM_ALERT_WINDOW',
-            'android.permission.QUERY_ALL_PACKAGES',
-            'android.permission.BIND_NOTIFICATION_LISTENER_SERVICE',
-          }
-          for item in list(root):
-              if item.tag in ('uses-permission', 'uses-permission-sdk-23') and item.get(ns + 'name') in forbidden:
-                  root.remove(item)
-          ET.indent(tree, space='  ')
-          tree.write(manifest, encoding='utf-8', xml_declaration=True)
-          print('Diagnostic manifest prepared; native alarm and usage plugins intentionally disabled.')
+          original = manifest.read_text()
+          # Preserve original XML namespaces, formatting and Gradle placeholders.
+          # ElementTree rewrites namespace prefixes and can corrupt Android manifests.
+          forbidden = (
+              'PACKAGE_USAGE_STATS', 'USE_FULL_SCREEN_INTENT',
+              'SCHEDULE_EXACT_ALARM', 'REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+              'SYSTEM_ALERT_WINDOW', 'QUERY_ALL_PACKAGES',
+              'BIND_NOTIFICATION_LISTENER_SERVICE',
+          )
+          updated = original
+          for permission in forbidden:
+              updated = re.sub(
+                  r'<uses-permission(?:-sdk-23)?\\b(?=[^>]*android:name=["\\']android\\.permission\\.' + permission + r'["\\'])[^>]*/>',
+                  '', updated,
+              )
+          manifest.write_text(updated)
+          print('Minimal-permission manifest prepared without XML rewriting.')
+          PY
+          python - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          base = Path('android/app/src/main')
+          for p in [base/'AndroidManifest.xml', *base.joinpath('res').rglob('*.xml')]:
+              try: ET.parse(p)
+              except ET.ParseError as e:
+                  print(f'::error file={p}::Invalid XML: {e}')
+                  raise
+          print('All app XML resources parsed successfully')
           PY
       - name: Verify merged APK manifest and debug signature
         run: |
