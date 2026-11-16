@@ -27,7 +27,8 @@ public final class AlarmPersonality {
     String safeTitle = title == null || title.trim().isEmpty() ? "seu compromisso" : title.trim();
     String key = (safeTitle + " " + (category == null ? "" : category)).toLowerCase(Locale.ROOT);
     int snoozes = snoozes(context, id);
-    String address = userName == null || userName.trim().isEmpty() ? "" : userName.trim().replaceAll("[\\\\r\\\\n]", " ").substring(0, Math.min(40, userName.trim().length())) + ", ";
+    String cleanName = userName == null ? "" : userName.trim().replace("\n", " ").replace("\r", " ");
+    String address = cleanName.isEmpty() ? "" : cleanName.substring(0, Math.min(40, cleanName.length())) + ", ";
     // Medical and sensitive tasks must never be mocked, even after postponement.
     if (key.matches(".*(remédio|remedio|medicamento|médic|medic|consulta|hospital|terapia|emergência|emergencia|luto|funeral).*")) {
       return address + "atenção. Está na hora de " + safeTitle + ". Cuide disso com calma e atenção.";
