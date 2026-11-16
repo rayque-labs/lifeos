@@ -5,17 +5,35 @@ The model downloads on first use. Requires a compatible Python/Torch setup.
 """
 from __future__ import annotations
 
+import hmac
 import io
+import ipaddress
+import logging
 import os
 import tempfile
 from pathlib import Path
+from threading import Lock
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
 
 app = FastAPI(title="LifeOS Voice Lab", docs_url="/docs")
+origins = [
+    value.strip()
+    for value in os.getenv("LIFEOS_VOICE_ORIGINS", "https://localhost,http://localhost").split(",")
+    if value.strip() and value.strip() != "*"
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_methods=["POST", "GET"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 _model = None
+_synthesis_lock = Lock()
+_log = logging.getLogger(__name__)
 MAX_UPLOAD = 10 * 1024 * 1024
 MAX_TEXT = 350
 
@@ -33,7 +51,43 @@ def health():
     return {"status": "ok", "engine": "xtts_v2", "loaded": _model is not None}
 
 
-@app.post("/preview")
+def authorize(request: Request):
+    origin = request.headers.get("Origin")
+    if origin is not None and origin not in origins:
+        raise HTTPException(403, "Origem não permitida pelo servidor de voz.")
+    token = os.getenv("LIFEOS_VOICE_TOKEN", "")
+    if token:
+        supplied = request.headers.get("Authorization", "")
+        if not hmac.compare_digest(supplied.encode(), f"Bearer {token}".encode()):
+            raise HTTPException(401, "Token do servidor de voz inválido.")
+        return
+    try:
+        if request.client and ipaddress.ip_address(request.client.host).is_loopback:
+            return
+    except ValueError:
+        pass
+    raise HTTPException(403, "O clonador precisa de um token para acesso fora do computador.")
+
+
+def synthesize(blob: bytes, text: str) -> bytes:
+    if not _synthesis_lock.acquire(blocking=False):
+        raise HTTPException(429, "O clonador está ocupado. Tente novamente em alguns segundos.")
+    try:
+        with tempfile.TemporaryDirectory(prefix="lifeos-voice-") as folder:
+            sample = Path(folder) / "reference.wav"
+            output = Path(folder) / "generated.wav"
+            sample.write_bytes(blob)
+            try:
+                get_model().tts_to_file(text=text, speaker_wav=str(sample), language="pt", file_path=str(output))
+                return output.read_bytes()
+            except Exception as exc:
+                _log.exception("Falha no motor XTTS-v2")
+                raise HTTPException(503, "Falha ao sintetizar áudio; confira instalação e logs locais.") from exc
+    finally:
+        _synthesis_lock.release()
+
+
+@app.post("/preview", dependencies=[Depends(authorize)])
 async def preview(
     audio: UploadFile = File(...),
     text: str = Form(...),
@@ -66,13 +120,5 @@ async def preview(
     except (wave.Error, ZeroDivisionError, EOFError):
         raise HTTPException(422, "Arquivo WAV inválido.")
 
-    with tempfile.TemporaryDirectory(prefix="lifeos-voice-") as folder:
-        sample = Path(folder) / "reference.wav"
-        output = Path(folder) / "generated.wav"
-        sample.write_bytes(blob)
-        try:
-            get_model().tts_to_file(text=text, speaker_wav=str(sample), language="pt", file_path=str(output))
-        except Exception as exc:
-            # Do not leak internal file paths or model diagnostics to clients.
-            raise HTTPException(503, "Falha ao sintetizar áudio; confira instalação e logs locais.") from exc
-        return Response(content=output.read_bytes(), media_type="audio/wav", headers={"Cache-Control": "no-store"})
+    content = await run_in_threadpool(synthesize, blob, text)
+    return Response(content=content, media_type="audio/wav", headers={"Cache-Control": "no-store"})

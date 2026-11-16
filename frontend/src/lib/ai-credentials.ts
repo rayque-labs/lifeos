@@ -4,7 +4,7 @@ const DATABASE = 'lifeos-ai-credentials'
 const STORE = 'secure'
 const KEY = 'encryption-key'
 const CREDENTIALS = 'credentials'
-type RecordValue = { iv: number[]; encrypted: number[] }
+type RecordValue = { iv: number[]; encrypted: ArrayBuffer | number[] }
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DATABASE, 1)
@@ -59,14 +59,15 @@ export async function saveEncrypted(name: string, keyName: string, config: unkno
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const encoded = new TextEncoder().encode(JSON.stringify(config))
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded)
-  await write(name, { iv: Array.from(iv), encrypted: Array.from(new Uint8Array(encrypted)) } satisfies RecordValue)
+  await write(name, { iv: Array.from(iv), encrypted } satisfies RecordValue)
 }
 export async function loadEncrypted<T>(name: string, keyName: string): Promise<T | null> {
   const stored = await read<RecordValue>(name)
   if (!stored) return null
   const key = await read<CryptoKey>(keyName)
   if (!key) throw Error('Chave de criptografia indisponível. Exclua a configuração e salve novamente.')
-  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(stored.iv) }, key, new Uint8Array(stored.encrypted))
+  const encrypted = Array.isArray(stored.encrypted) ? new Uint8Array(stored.encrypted) : stored.encrypted
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(stored.iv) }, key, encrypted)
   return JSON.parse(new TextDecoder().decode(decrypted)) as T
 }
 export async function deleteEncrypted(name: string, keyName: string): Promise<void> {

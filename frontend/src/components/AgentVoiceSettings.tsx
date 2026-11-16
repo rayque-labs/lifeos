@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createVoice, deleteVoiceConfig, loadVoiceConfig, saveVoiceConfig, saveVoicePreference, speakVoice, stopVoice, voicePreference } from '../lib/agent-voice'
 import { isAndroid } from '../lib/native-assistant'
 import { Button, Field, Input, Select } from './ui'
+import { LocalVoiceSettings } from './LocalVoiceSettings'
 
 const testPhrase = 'Oi! Eu sou a assistente do LifeOS. Vamos organizar seu dia?'
 
@@ -49,9 +50,10 @@ export function AgentVoiceSettings({ account, userId }: { account: string; userI
     <Field label="Tipo de voz">
       <Select disabled={busy} value={preference.mode} onChange={event => {
         stopVoice()
-        updatePreference({ ...preference, mode: event.target.value === 'elevenlabs' ? 'elevenlabs' : 'system' })
+        updatePreference({ ...preference, mode: event.target.value === 'lifeos' ? 'lifeos' : event.target.value === 'elevenlabs' ? 'elevenlabs' : 'system' })
       }}>
         <option value="system">Voz do sistema</option>
+        <option value="lifeos">Voz clonada · LifeOS</option>
         <option value="elevenlabs">Voz clonada · ElevenLabs</option>
       </Select>
     </Field>
@@ -61,6 +63,7 @@ export function AgentVoiceSettings({ account, userId }: { account: string; userI
         {voices.map(voice => <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} ({voice.lang})</option>)}
       </Select>
     </Field>}
+    {preference.mode === 'lifeos' && <LocalVoiceSettings key={account} account={account} disabled={busy} run={run} />}
     {preference.mode === 'elevenlabs' && <>
       <Field label="Chave da ElevenLabs"><Input type="password" autoComplete="off" spellCheck={false} value={apiKey} disabled={!loaded || busy} onChange={event => setKey(event.target.value)} /></Field>
       <Field label="ID da voz"><Input value={voiceId} disabled={!loaded || busy} onChange={event => setVoiceId(event.target.value)} placeholder="Cole um ID ou crie uma voz abaixo" /></Field>
