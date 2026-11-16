@@ -6,7 +6,7 @@ export function MonolithSplash({ onComplete }: { onComplete: () => void }) {
   const [ready, setReady] = useState(false)
   useEffect(() => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const timer = window.setTimeout(onComplete, reduceMotion ? 150 : 5000)
+    const timer = window.setTimeout(onComplete, reduceMotion ? 150 : 3200)
     return () => window.clearTimeout(timer)
   }, [onComplete])
   return (
