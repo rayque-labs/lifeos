@@ -50,7 +50,8 @@ public class AlarmActivity extends Activity {
     snooze.setOnClickListener(v -> {
       Intent next = new Intent(this, AlarmReceiver.class);
       next.putExtra("id", id); next.putExtra("title", title);
-      next.putExtra("speech", "Ah, de novo? Seu lembrete voltou: " + title);
+      next.putExtra("category", getIntent().getStringExtra("category"));
+      AlarmPersonality.markSnoozed(this, id);
       PendingIntent pending = PendingIntent.getBroadcast(this, id, next, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
       AlarmManager alarms = (AlarmManager) getSystemService(ALARM_SERVICE);
       long at = System.currentTimeMillis() + 300000L;
@@ -60,7 +61,7 @@ public class AlarmActivity extends Activity {
       } catch (SecurityException e) { alarms.set(AlarmManager.RTC_WAKEUP, at, pending); }
       closeAlarm();
     });
-    stop.setOnClickListener(v -> closeAlarm());
+    stop.setOnClickListener(v -> { AlarmPersonality.reset(this, id); closeAlarm(); });
     mute.setOnClickListener(v -> { if (tts != null) tts.stop(); mute.setEnabled(false); });
     setContentView(root);
     tts = new TextToSpeech(this, status -> {
