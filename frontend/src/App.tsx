@@ -42,12 +42,9 @@ function Router() {
 }
 
 export default function App() {
-  // Play once per tab session. A missing asset must never block app startup.
-  const [intro, setIntro] = useState(() => {
-    try { return sessionStorage.getItem('lifeos:monolith:intro') !== 'done' } catch { return true }
-  })
+  // Play on every cold start. The splash is a real part of the LifeOS identity.
+  const [intro, setIntro] = useState(true)
   const finishIntro = useCallback(() => {
-    try { sessionStorage.setItem('lifeos:monolith:intro', 'done') } catch { /* storage unavailable */ }
     setIntro(false)
   }, [])
   return <BrowserRouter><AuthProvider>
