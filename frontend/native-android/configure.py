@@ -53,15 +53,15 @@ service = update_element(app, "service", ".AssistantOverlayService",
 update_element(service, "property", "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE",
     value="User-enabled draggable digital assistant over other Android applications")
 
-for permission in ("SYSTEM_ALERT_WINDOW", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_SPECIAL_USE"):
+for permission in ("SYSTEM_ALERT_WINDOW", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_SPECIAL_USE", "RECORD_AUDIO"):
     update_element(base, "uses-permission", f"android.permission.{permission}")
 
 queries = base.find("queries")
 if queries is None:
     queries = ET.SubElement(base, "queries")
-tts = "android.intent.action.TTS_SERVICE"
-if queries.find(f"intent/action[@{{{ANDROID}}}name='{tts}']") is None:
-    update_element(ET.SubElement(queries, "intent"), "action", tts)
+for action in ("android.intent.action.TTS_SERVICE", "android.speech.RecognitionService"):
+    if queries.find(f"intent/action[@{{{ANDROID}}}name='{action}']") is None:
+        update_element(ET.SubElement(queries, "intent"), "action", action)
 
 controls = update_element(app, "service", ".TophAccessibilityService",
     exported="true", permission="android.permission.BIND_ACCESSIBILITY_SERVICE",

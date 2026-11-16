@@ -167,14 +167,14 @@ export function stopVoice() {
   else window.speechSynthesis?.cancel()
 }
 
-export async function speakVoice(text: string, user: string, oldUserId?: number | string) {
+export async function speakVoice(text: string, user: string, oldUserId?: number | string, waitForEnd = false) {
   stopVoice()
   const request: NonNullable<typeof playback> = { controller: new AbortController() }
   playback = request
   const { mode, voiceURI, retro } = voicePreference(user, oldUserId)
   try {
     if (mode === 'system') {
-      if (isAndroid) { await nativeAssistant.speak({ text, retro }); return }
+      if (isAndroid) { await nativeAssistant.speak({ text, retro, wait: waitForEnd }); return }
       if (!window.speechSynthesis) throw new Error('A voz do sistema está indisponível neste navegador.')
       const speech = new SpeechSynthesisUtterance(text)
       speech.lang = 'pt-BR'
@@ -202,7 +202,7 @@ export async function speakVoice(text: string, user: string, oldUserId?: number 
       headers: { 'xi-api-key': config.apiKey, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
       body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2' }),
     }, request.controller, 45_000)
-    await playAudio(audioData, request, false)
+    await playAudio(audioData, request, waitForEnd)
   } catch (error) {
     if (!request.controller.signal.aborted || playback === request) throw error
   }

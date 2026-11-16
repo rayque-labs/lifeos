@@ -151,7 +151,7 @@ public class AssistantOverlayService extends Service {
                 return;
             }
             mascot = new MascotView();
-            mascot.setContentDescription("Abrir conversa com a Toph");
+            mascot.setContentDescription("Conversar por voz com a Toph");
             mascot.setOnClickListener(view -> openConversation());
             mascot.setOnTouchListener(new MascotDrag());
             int type = Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY

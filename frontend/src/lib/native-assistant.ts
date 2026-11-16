@@ -11,8 +11,11 @@ interface NativeAssistantPlugin {
   inspectScreen(): Promise<{ summary: string }>
   openExternal(options: { url: string }): Promise<void>
   controlDevice(options: { action: 'open' | 'up' | 'down' | 'tap' | 'type' | 'click' | 'search' | 'profile'; app: string; text?: string; x?: number; y?: number }): Promise<void>
+  setCompactVoice(options: { compact: boolean }): Promise<void>
+  listen(): Promise<{ text: string }>
+  stopListening(): Promise<void>
   dictate(): Promise<{ text: string }>
-  speak(options: { text: string; retro?: boolean }): Promise<void>
+  speak(options: { text: string; retro?: boolean; wait?: boolean }): Promise<void>
   stop(): Promise<void>
 }
 

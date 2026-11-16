@@ -16,9 +16,12 @@ type Recognition = { lang: string; continuous: boolean; interimResults: boolean;
 type SpeechWindow = Window & { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }
 const INTRO: Message = { role: 'model', text: 'Experimente “Criar tarefa: estudar Clojure” ou “Listar tarefas”.' }
 
-export function AssistantChatPage({ floating = false }: { floating?: boolean }) {
+export function AssistantChatPage({ floating = false, compactVoice = false }: { floating?: boolean; compactVoice?: boolean }) {
   const { user } = useAuth()
   const voiceEnabled = useRef(floating)
+  const greeted = useRef(false)
+  const [voiceSession, setVoiceSession] = useState(0)
+  const [voicePaused, setVoicePaused] = useState(false)
   const request = useRef<AbortController | null>(null)
   const [messages, setMessages] = useState<Message[]>([INTRO])
   const [key, setKey] = useState('')
@@ -70,9 +73,9 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     recognition.current?.stop()
     stopVoice()
   }, [])
-  const speak = async (text: string) => {
+  const speak = async (text: string, waitForEnd = false) => {
     if (!user) return
-    try { await speakVoice(text, user.email, user.id) }
+    try { await speakVoice(text, user.email, user.id, waitForEnd) }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível reproduzir a voz.') }
   }
   const send = async (override?: string) => {
@@ -86,7 +89,9 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     const action = memory ? null : parseAssistantAction(text)
     const local = !!(memory || action)
     if (!local && AI_PROVIDERS[provider].requiresKey && !key.trim()) {
-      setError('Conecte uma API de IA para conversar. Os comandos de tarefas já estão disponíveis.')
+      const message = 'Conecte uma API de IA para conversar. Os comandos de tarefas já estão disponíveis.'
+      setError(message)
+      if (compactVoice) await speak(message, true)
       return
     }
     setDraft('')
@@ -98,7 +103,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     const controller = new AbortController()
     request.current = controller
     const timeout = local ? undefined : window.setTimeout(() => controller.abort('timeout'), 25000)
-    const announce = action ? window.setTimeout(() => {
+    const announce = action && !compactVoice ? window.setTimeout(() => {
       if (voiceEnabled.current && !controller.signal.aborted) void speak(status)
     }, 800) : undefined
     try {
@@ -109,7 +114,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
       if (controller.signal.aborted) return
       const privateResult = memory?.kind === 'list' || action?.kind === 'bank-balances' || action?.kind === 'screen'
       setMessages(prev => [...prev, { role: 'model', text: answer, local, private: privateResult }])
-      if (voiceEnabled.current && !privateResult) void speak(answer)
+      if (voiceEnabled.current && !privateResult) await speak(answer, compactVoice)
     } catch (reason) {
       if (controller.signal.reason === 'timeout') setError('A IA demorou para responder.')
       else if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Não foi possível executar o pedido.')
@@ -120,6 +125,75 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
       setBusy('')
     }
   }
+  const voiceHandlers = useRef({ send, speak })
+  useEffect(() => { voiceHandlers.current = { send, speak } }, [send, speak])
+  const account = user?.email
+
+  useEffect(() => {
+    if (!compactVoice || !isAndroid || !loaded || !account) return
+    let active = true
+    let timer: number | undefined
+    let silentTurns = 0
+    const pause = () => {
+      setListening(false)
+      setVoicePaused(true)
+    }
+    const next = async () => {
+      if (!active) return
+      if (document.hidden) { pause(); return }
+      try {
+        setListening(true)
+        const result = await nativeAssistant.listen()
+        if (!active) return
+        if (document.hidden) { pause(); return }
+        setListening(false)
+        const text = result.text.trim()
+        if (/^(?:encerrar|fechar|parar)(?: (?:a conversa|a top[h]?|de ouvir))?[.!]?$/i.test(text)) {
+          pause()
+          await nativeAssistant.closePanel({ end: false })
+          return
+        }
+        if (text) {
+          silentTurns = 0
+          await voiceHandlers.current.send(text)
+        } else if (++silentTurns >= 2) {
+          pause()
+          return
+        }
+        if (active) timer = window.setTimeout(() => void next(), 350)
+      } catch (reason) {
+        if (!active) return
+        pause()
+        setError(reason instanceof Error ? reason.message : 'Não foi possível ouvir. Confira a permissão do microfone.')
+      }
+    }
+    const onVisibility = () => {
+      if (!document.hidden) return
+      active = false
+      window.clearTimeout(timer)
+      void nativeAssistant.stopListening().catch(() => {})
+      stopVoice()
+      pause()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    timer = window.setTimeout(() => {
+      void (async () => {
+        if (!greeted.current) {
+          greeted.current = true
+          await voiceHandlers.current.speak('Olá! Como posso ajudar?', true)
+        }
+        if (active) await next()
+      })()
+    }, 0)
+    return () => {
+      active = false
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.clearTimeout(timer)
+      void nativeAssistant.stopListening().catch(() => {})
+      stopVoice()
+    }
+  }, [account, compactVoice, loaded, voiceSession])
+
   const toggleListening = async () => {
     if (isAndroid) {
       if (listening) return
@@ -150,6 +224,14 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
       r.start(); setListening(true)
     } catch { setError('Não foi possível iniciar o microfone.'); setListening(false) }
   }
+  if (compactVoice) return <div className="min-w-0 px-3 pb-2 text-xs text-[#F1F1ED]" aria-live="polite">
+    <p>{error || busy || (listening ? 'Ouvindo…' : !account ? 'Entre no LifeOS para usar a voz.' : voicePaused ? 'Microfone pausado' : 'Preparando a Toph…')}</p>
+    {voicePaused && <button type="button" className="mono-accent underline" onClick={() => {
+      setError('')
+      setVoicePaused(false)
+      setVoiceSession(value => value + 1)
+    }}>Voltar a ouvir</button>}
+  </div>
   return <div className={`mx-auto flex w-full max-w-3xl flex-col gap-3 text-[#F1F1ED] ${floating ? 'assistant-compact' : 'min-h-[65vh]'}`}>
     {!floating && <SectionBanner section="chat" pageHeading />}
     {!floating && isAndroid && <Link to="/settings#toph-flutuante" className="mono-accent self-start text-sm underline">Configurar Toph flutuante</Link>}
