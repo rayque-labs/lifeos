@@ -53,7 +53,7 @@ export function TasksPage() {
       if (taskId && draft.dueAt) {
         const at = new Date(draft.dueAt).getTime()
         if (at > Date.now()) {
-          try { await scheduleLifeOSAlarm({ id: taskId, at, title: draft.title, speech: alarmSpeech(draft.title, draft.category) }) }
+          try { await scheduleLifeOSAlarm({ id: taskId, at, title: draft.title, speech: alarmSpeech(draft.title, draft.category), category: draft.category }) }
           catch (alarmError) { console.warn('Não foi possível agendar o alarme nativo:', alarmError) }
         }
       } else if (taskId) { await cancelLifeOSAlarm(taskId) }
