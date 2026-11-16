@@ -59,12 +59,13 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
       setKey(''); setSaved(false); setError('')
     } catch { setError('Não foi possível excluir a chave salva.') }
   }
-  useEffect(() => { const container = bottom.current?.parentElement
-    if (container) container.scrollTop = container.scrollHeight }, [messages])
+  useEffect(() => {
+    const container = bottom.current?.parentElement
+    if (container) container.scrollTop = container.scrollHeight
+  }, [messages, busy])
   useEffect(() => () => {
     request.current?.abort()
     recognition.current?.stop()
-    voiceEnabled.current = false
     stopVoice()
   }, [])
   const speak = async (text: string) => {
@@ -84,10 +85,14 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     setError('')
     const history: Message[] = [...messages.filter(m => m !== INTRO), { role: 'user', text }]
     setMessages(prev => [...prev, { role: 'user', text }])
-    setBusy(action?.kind === 'create-task' ? 'Criando tarefa…' : action ? 'Consultando tarefas…' : 'Preparando resposta…')
+    const status = action?.kind === 'create-task' ? 'Criando tarefa…' : action ? 'Consultando tarefas…' : 'Preparando resposta…'
+    setBusy(status)
     const controller = new AbortController()
     request.current = controller
     const timeout = action ? undefined : window.setTimeout(() => controller.abort('timeout'), 25000)
+    const announce = action ? window.setTimeout(() => {
+      if (voiceEnabled.current && !controller.signal.aborted) void speak(status)
+    }, 800) : undefined
     try {
       const answer = action ? await executeAssistantAction(action)
         : await generateAIReply({ provider, apiKey: key, model, endpoint }, history, controller.signal)
@@ -99,6 +104,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
       else if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Não foi possível executar o pedido.')
     } finally {
       window.clearTimeout(timeout)
+      window.clearTimeout(announce)
       request.current = null
       setBusy('')
     }
@@ -153,8 +159,8 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
       <div className="mt-3 flex flex-wrap items-center gap-2"><button type="button" onClick={() => void save()} disabled={!model.trim() || (AI_PROVIDERS[provider].requiresKey && !key.trim())} className="rounded-xl bg-[#C5FF4A] px-4 py-2 font-semibold text-[#101010] disabled:opacity-50">{saved ? 'Atualizar configuração' : 'Salvar configuração'}</button><button type="button" onClick={() => void forget()} className="rounded-xl border border-[#45454a] px-4 py-2">Excluir chave salva</button>{saved && <span className="text-xs text-[#C5FF4A]">Configuração salva neste dispositivo</span>}</div>
       <p className="mt-2 text-xs text-[#a3a5a9]">APIs personalizadas precisam ser compatíveis com /chat/completions e permitir chamadas do aplicativo (CORS). Endereços locais podem não funcionar no celular; localhost aponta para o próprio aparelho. Use somente serviços confiáveis.</p>
     </details>}
-    <div className="flex items-center justify-between gap-3"><button type="button" onClick={() => {voiceEnabled.current = !voiceEnabled.current; setVoiceMode(voiceEnabled.current); stopVoice()}} className="flex items-center gap-2 rounded-xl border border-[#45454a] px-3 py-2 text-sm">{voiceMode ? <Volume2 size={17}/> : <VolumeX size={17}/>} {voiceMode ? 'Respostas faladas: ativadas' : 'Ativar respostas faladas'}</button><button type="button" disabled={!!busy} onClick={() => {setMessages([INTRO]);setError('');stopVoice()}} className="flex items-center gap-2 text-sm text-[#a3a5a9]"><Trash2 size={16}/> Limpar conversa</button></div>
-    <div aria-live="polite" className="assistant-messages flex min-h-40 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-[#34363a] bg-[#151617] p-3">{messages.map((m,i) => <div key={i} className={m.role === 'user' ? 'ml-auto max-w-[90%] rounded-2xl bg-[#C5FF4A] px-4 py-3 text-[#101010]' : 'mr-auto max-w-[90%] rounded-2xl bg-[#282a2c] px-4 py-3 text-[#F1F1ED]'}><p className="whitespace-pre-wrap text-sm">{m.text}</p>{m.role === 'model' && <button type="button" aria-label="Ouvir resposta" className="mt-2 opacity-70" onClick={() => void speak(m.text)}><Volume2 size={15}/></button>}</div>)}{busy && <p className="text-sm text-[#a3a5a9]">{busy}</p>}<div ref={bottom}/></div>
+    <div className="flex items-center justify-between gap-3"><button type="button" onClick={() => {voiceEnabled.current = !voiceEnabled.current; setVoiceMode(voiceEnabled.current); stopVoice()}} className="flex items-center gap-2 rounded-xl border border-[#45454a] px-3 py-2 text-sm">{voiceMode ? <Volume2 size={17}/> : <VolumeX size={17}/>} {floating ? (voiceMode ? 'Voz ligada' : 'Ligar voz') : (voiceMode ? 'Respostas faladas: ativadas' : 'Ativar respostas faladas')}</button><button type="button" aria-label="Limpar conversa" disabled={!!busy} onClick={() => {setMessages([INTRO]);setError('');stopVoice()}} className="flex items-center gap-2 text-sm text-[#a3a5a9]"><Trash2 size={16}/> {floating ? 'Limpar' : 'Limpar conversa'}</button></div>
+    <div aria-live="polite" className="assistant-messages flex min-h-40 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-[#34363a] bg-[#151617] p-3">{messages.map((m,i) => <div key={i} className={m.role === 'user' ? 'assistant-user-message ml-auto max-w-[90%] rounded-2xl px-4 py-3' : 'mr-auto max-w-[90%] rounded-2xl bg-[#282a2c] px-4 py-3 text-[#F1F1ED]'}><p className="whitespace-pre-wrap text-sm">{m.text}</p>{m.role === 'model' && <button type="button" aria-label="Ouvir resposta" className="mt-2 opacity-70" onClick={() => void speak(m.text)}><Volume2 size={15}/></button>}</div>)}{busy && <p className="text-sm text-[#a3a5a9]">{busy}</p>}<div ref={bottom}/></div>
     {error && <p role="alert" className="text-sm text-[#ff8990]">{error}</p>}
     <form onSubmit={e => {e.preventDefault();void send()}} className="flex gap-2"><button type="button" aria-label={listening && !isAndroid ? 'Parar microfone' : 'Ditado por voz'} disabled={isAndroid && listening} onClick={() => void toggleListening()} className="rounded-xl border border-[#45454a] p-3">{listening ? <MicOff size={20} className="text-[#C5FF4A]"/> : <Mic size={20}/>}</button><input aria-label="Mensagem" value={draft} onChange={e => setDraft(e.target.value)} placeholder="Converse com a assistente…" className="min-w-0 flex-1 rounded-xl border border-[#45454a] bg-[#242628] p-3 text-white"/><button type="submit" disabled={!!busy || !loaded || !draft.trim()} aria-label="Enviar mensagem" className="rounded-xl bg-[#C5FF4A] p-3 text-[#101010] disabled:opacity-40"><Send size={20}/></button></form>
     <p className="text-xs text-[#9a9da0]">Toque no microfone para ditar. {!floating && <Link to="/settings" className="mono-accent underline">Configurar voz e assistente</Link>}</p>

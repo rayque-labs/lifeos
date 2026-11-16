@@ -48,7 +48,7 @@ export function DashboardPage() {
   if (error) return <div className="space-y-3"><ErrorMessage message={error} /><Button onClick={() => { setError(''); setAttempt(value => value + 1) }}>Tentar novamente</Button></div>
   if (!data) return <LoadingState />
   const { summary, tasks } = data
-  const now = new Date()
+  const now = new Date(summary.generated_at)
   const hour = now.getHours()
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
   const name = user?.full_name.trim().split(/\s+/)[0]

@@ -56,7 +56,7 @@ export function AppLayout() {
     <aside id="lifeos-more" className={`sidebar-scroll mono-more ${open ? 'is-open' : ''} fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col bg-[#203c2e] px-4 py-5 text-white transition-transform md:static md:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex items-center justify-between px-2 pb-8">
         <Link to="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
-          <img src="/lifeos-symbol.svg" alt="" className="h-9 w-9" />
+          <img src="/lifeos-original.png" alt="" className="h-9 w-9" />
           <span className="text-xl font-bold tracking-tight">LifeOS</span>
         </Link>
         <button aria-label="Fechar menu" className="rounded-lg p-2 text-[#d5e1d7] hover:bg-white/10 md:hidden" onClick={() => setOpen(false)}><X size={18} /></button>
@@ -77,8 +77,8 @@ export function AppLayout() {
       </div>
     </aside>
     <main className="min-w-0 flex-1 md:ml-0">
-      <header className="mono-top-header sticky top-0 z-20 flex items-center gap-3 border-b border-[#e8ebe5] bg-[#f7f8f4]/90 px-4 backdrop-blur-xl sm:px-7 lg:px-10">
-        {home ? <Link to="/" className="mono-mobile-brand md:hidden"><img src="/lifeos-symbol.svg" alt="" /><span>LifeOS</span></Link>
+      <header className="mono-top-header sticky top-0 z-20 flex items-center gap-3 border-b px-4 backdrop-blur-xl sm:px-7 lg:px-10">
+        {home ? <Link to="/" className="mono-mobile-brand md:hidden"><img src="/lifeos-original.png" alt="" /><span>LifeOS</span></Link>
           : <Link to="/" aria-label="Voltar ao início" className="mono-mobile-back md:hidden"><ArrowLeft size={23} /></Link>}
         <div className={`mono-header-title ${home ? 'hidden md:flex' : 'flex'} min-w-0 flex-1 items-center gap-2 text-xs text-[#94a097]`}><span className="hidden md:inline">LifeOS</span><ChevronRight size={13} className="hidden md:inline" /><span className="truncate font-semibold">{title}</span></div>
         {home && <Link to="/calendar" aria-label="Agenda e lembretes" className="mono-header-icon"><Bell size={21} /></Link>}

@@ -42,5 +42,6 @@
 .assistant-popover-bar a { font-size: .69rem; text-decoration: underline; }
 .assistant-popover-bar button { display: grid; place-items: center; width: 36px; height: 40px; flex: none; }
 .assistant-compact { padding: 9px; }
+.assistant-user-message { background: var(--mono-accent); color: #101010; }
 .assistant-messages { max-height: 55dvh; overscroll-behavior: contain; }
 .assistant-compact .assistant-messages { min-height: 100px; max-height: min(36dvh, 300px); }
