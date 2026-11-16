@@ -10,6 +10,7 @@ export const sections = {
   habits: { label: 'Hábitos', subtitle: 'Consistência cria resultados.', presets: ['orbit','pulse','grid'] },
   notes: { label: 'Notas', subtitle: 'Ideias merecem espaço.', presets: ['grid','horizon','orbit'] },
   calendar: { label: 'Agenda', subtitle: 'Organize o que importa.', presets: ['horizon','orbit','pulse'] },
+  chat: { label: 'Chat da Toph', subtitle: 'Converse por texto ou voz.', presets: ['orbit','pulse','horizon'] },
   finance: { label: 'Finanças', subtitle: 'Clareza para suas decisões.', presets: ['pulse','grid','horizon'] },
 } as const
 export type Section = keyof typeof sections
@@ -57,8 +58,9 @@ async function compressImage(file: File, square = false): Promise<string> {
     return canvas.toDataURL('image/webp',.92)
   } finally { URL.revokeObjectURL(objectUrl) }
 }
-export function SectionBanner({ section, compact = false }: { section: Section; compact?: boolean }) {
+export function SectionBanner({ section, compact = false, pageHeading = false }: { section: Section; compact?: boolean; pageHeading?: boolean }) {
   const info = sections[section]
+  const Heading = pageHeading ? 'h1' : 'h2'
   const field = 'banner:' + section
   const { value, set } = usePersonalization(field)
   const [editing,setEditing] = useState(false)
@@ -73,7 +75,7 @@ export function SectionBanner({ section, compact = false }: { section: Section; 
   return <div className={`mono-banner-wrap ${compact ? 'mono-banner-wrap--compact' : ''}`}>
     <div className={`mono-banner ${!value ? `mono-banner--${section}` : ''} mono-art-${preset}`} style={value?.type==='image'?{backgroundImage:`linear-gradient(90deg,#000b,#0003),url("${value.value}")`,backgroundSize:'cover',backgroundPosition:'center'}:undefined}>
       <div className="mono-banner__art" aria-hidden="true"><i/><i/><i/></div>
-      {!compact && <div className="mono-banner__copy"><span className="mono-banner__eyebrow">LIFEOS / {info.label.toUpperCase()}</span><h2>{info.label}</h2><p>{info.subtitle}</p></div>}
+      {!compact && <div className="mono-banner__copy"><span className="mono-banner__eyebrow">LIFEOS / {info.label.toUpperCase()}</span><Heading>{info.label}</Heading><p>{info.subtitle}</p></div>}
       <button className="mono-banner__edit" type="button" onClick={() => setEditing(!editing)} aria-expanded={editing} aria-label={`Personalizar banner de ${info.label}`}><Camera size={16}/> Personalizar</button>
     </div>
     {editing && <div className="mono-banner-options">

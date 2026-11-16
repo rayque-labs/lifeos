@@ -127,7 +127,7 @@ body{background:var(--mono-bg);color:var(--mono-text)}
   .app-shell .mono-banner-wrap:not(.mono-banner-wrap--compact) { margin-bottom: 12px; }
   .app-shell .mono-banner-wrap:not(.mono-banner-wrap--compact) .mono-banner { min-height: 96px; padding: 13px; border-radius: 14px; }
   .app-shell .mono-banner__eyebrow { display: none; }
-  .app-shell .mono-banner__copy h2 { font-size: 1.35rem; margin: 0 0 4px; }
+  .app-shell .mono-banner__copy :is(h1, h2) { font-size: 1.35rem; margin: 0 0 4px; }
 }
 
 @media (max-width: 767px) {
