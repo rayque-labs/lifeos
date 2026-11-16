@@ -1,15 +1,12 @@
 import { ProfilePhoto } from './Personalization'
 import { AgentWellbeingNudge } from './AgentWellbeingNudge'
-import { useEffect, useState } from 'react'
-import type { PluginListenerHandle } from '@capacitor/core'
-import { isAndroid, nativeAssistant } from '../lib/native-assistant'
+import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Bell, CalendarDays, CheckSquare2, Plus, ChevronRight, CircleDollarSign, Grid2X2, House,
   FolderKanban, LayoutDashboard, LogOut, NotebookPen, Settings2, Sparkles, MessageCircle, X,
 } from 'lucide-react'
 import { useAuth } from '../lib/auth'
-import { FloatingAssistant } from './FloatingAssistant'
 
 const items = [
   { to: '/', label: 'Início', icon: LayoutDashboard, end: true },
@@ -25,29 +22,11 @@ const titleByPath: Record<string, string> = Object.fromEntries(items.map(item =>
 
 export function AppLayout() {
   const [open, setOpen] = useState(false)
-  const [session, setSession] = useState(0)
-  const showAssistant = () => setSession(value => value + 1)
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const home = location.pathname === '/'
   const otherPage = !['/', '/calendar', '/assistant'].includes(location.pathname)
-  useEffect(() => {
-    if (!isAndroid) return
-    let active = true
-    let handle: PluginListenerHandle | undefined
-    const openAssistant = () => {
-      void nativeAssistant.consumeLaunch().then(({ active: invoked }) => {
-        if (active && invoked) { setOpen(false); showAssistant() }
-      }).catch(() => {})
-    }
-    void nativeAssistant.addListener('assistantInvoked', openAssistant).then(listener => {
-      if (!active) { void listener.remove(); return }
-      handle = listener
-      openAssistant()
-    }).catch(() => {})
-    return () => { active = false; void handle?.remove() }
-  }, [])
   const title = titleByPath[location.pathname] || (location.pathname === '/settings' ? 'Configurações' : 'LifeOS')
   const leave = async () => { await logout(); navigate('/login') }
 
@@ -90,10 +69,9 @@ export function AppLayout() {
         <NavLink end to="/" className={({ isActive }) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><House size={22}/><span>Início</span></NavLink>
         <NavLink to="/calendar" className={({ isActive }) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><CalendarDays size={22}/><span>Agenda</span></NavLink>
         <Link to="/tasks?nova=1" aria-label="Nova tarefa" className="mono-nav-item mono-nav-create"><span className="mono-nav-create-circle"><Plus size={26}/></span></Link>
-        <button type="button" onClick={showAssistant} className={`mono-nav-item ${session || location.pathname === '/assistant' ? 'is-active' : ''}`}><MessageCircle size={22}/><span>Chat</span></button>
+        <NavLink to="/assistant" className={({ isActive }) => `mono-nav-item ${isActive ? 'is-active' : ''}`}><MessageCircle size={22}/><span>Chat</span></NavLink>
         <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-controls="lifeos-more" className={`mono-nav-item ${open || otherPage ? 'is-active' : ''}`}><Grid2X2 size={22}/><span>Mais</span></button>
       </nav>
     </main>
-    {session > 0 && <FloatingAssistant request={session} onClose={() => setSession(0)} />}
   </div>
 }

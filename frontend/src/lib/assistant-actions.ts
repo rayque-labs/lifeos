@@ -1,4 +1,5 @@
 import { get, post } from './api'
+import { isAndroid, nativeAssistant } from './native-assistant'
 import type { Task } from './types'
 
 export type AssistantAction = { kind: 'create-task'; title: string } | { kind: 'list-tasks' }
@@ -15,6 +16,7 @@ export async function executeAssistantAction(action: AssistantAction) {
   if (action.kind === 'create-task') {
     if (!action.title || action.title.length > 150) throw new Error('Use um título de até 150 caracteres.')
     const saved = await post<Task>('/tasks/', { title: action.title })
+    if (isAndroid) await nativeAssistant.markOverlayDataChanged().catch(() => {})
     window.dispatchEvent(new Event(taskChangedEvent))
     return `Criei a tarefa “${saved.title}”.`
   }

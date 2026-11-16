@@ -16,6 +16,19 @@ export function AgentVoiceSettings({ account, userId }: { account: string; userI
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [overlayRunning, setOverlayRunning] = useState(false)
+
+  useEffect(() => {
+    if (!isAndroid) return
+    const refresh = () => { void nativeAssistant.getOverlayStatus().then(status => setOverlayRunning(status.running)).catch(() => {}) }
+    refresh()
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -104,7 +117,15 @@ export function AgentVoiceSettings({ account, userId }: { account: string; userI
     </>}
     <div className="flex flex-wrap gap-2">
       <Button variant="secondary" disabled={!loaded || busy} onClick={() => void run(() => speakVoice(testPhrase, account, userId))}>Ouvir teste</Button>
-      {isAndroid && <Button variant="secondary" disabled={busy} onClick={() => void run(() => nativeAssistant.openSettings())}>Assistente padrão do Android</Button>}
+      {isAndroid && <>
+        <Button variant="secondary" disabled={busy} onClick={() => void run(() => nativeAssistant.openSettings())}>Assistente padrão do Android</Button>
+        <Button variant="secondary" disabled={busy} onClick={() => void run(async () => {
+          const { state } = await nativeAssistant.toggleOverlay()
+          setOverlayRunning(state === 'started')
+          setNotice(state === 'started' ? 'Toph vai aparecer quando você sair do LifeOS.' :
+            state === 'stopped' ? 'Toph flutuante encerrada.' : 'Autorize o LifeOS em Aparecer sobre outros apps.')
+        })}>{overlayRunning ? 'Encerrar Toph flutuante' : 'Ativar Toph flutuante'}</Button>
+      </>}
     </div>
     {notice && <p role="status" className="text-sm">{notice}</p>}
   </section>

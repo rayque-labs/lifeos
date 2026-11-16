@@ -5,6 +5,7 @@ import android.app.role.RoleManager;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.os.Build;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
@@ -28,22 +29,94 @@ public class LifeOSAssistant extends Plugin {
     private boolean destroyed;
 
     @PluginMethod
-    public void consumeLaunch(PluginCall call) {
-        Intent intent = getActivity().getIntent();
-        boolean active = intent != null && Intent.ACTION_ASSIST.equals(intent.getAction());
-        if (active) intent.setAction(null);
-        call.resolve(new JSObject().put("active", active));
+    public void getPanelMode(PluginCall call) {
+        call.resolve(new JSObject().put("external", getActivity() instanceof AssistantPanelActivity));
     }
 
-    @Override
-    protected void handleOnNewIntent(Intent intent) {
-        if (Intent.ACTION_ASSIST.equals(intent.getAction())) {
-            notifyListeners("assistantInvoked", new JSObject());
+    @PluginMethod
+    public void getOverlayStatus(PluginCall call) {
+        call.resolve(new JSObject()
+            .put("defaultAssistant", AssistantOverlayService.isDefaultAssistant(getContext()))
+            .put("allowed", Settings.canDrawOverlays(getContext()))
+            .put("running", AssistantOverlayService.isRunning()));
+    }
+
+    @PluginMethod
+    public void toggleOverlay(PluginCall call) {
+        Activity activity = getActivity();
+        activity.runOnUiThread(() -> {
+            Intent service = new Intent(activity, AssistantOverlayService.class);
+            if (AssistantOverlayService.isRunning()) {
+                activity.stopService(service);
+                call.resolve(new JSObject().put("state", "stopped"));
+                return;
+            }
+            if (!AssistantOverlayService.isDefaultAssistant(activity)) {
+                call.reject("Selecione o LifeOS como assistente padrão primeiro.");
+                return;
+            }
+            try {
+                if (!Settings.canDrawOverlays(activity)) {
+                    Intent permission = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + activity.getPackageName()));
+                    startActivityForResult(call, permission, "overlayPermission");
+                } else {
+                    startOverlay(activity, call);
+                }
+            } catch (RuntimeException error) {
+                call.reject("O Android não conseguiu abrir a configuração da Toph.");
+            }
+        });
+    }
+
+    @ActivityCallback
+    private void overlayPermission(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        if (!Settings.canDrawOverlays(getContext())) {
+            call.resolve(new JSObject().put("state", "permission"));
+            return;
+        }
+        startOverlay(getActivity(), call);
+    }
+
+    private void startOverlay(Activity activity, PluginCall call) {
+        try {
+            if (Build.VERSION.SDK_INT >= 26) activity.startForegroundService(new Intent(activity, AssistantOverlayService.class));
+            else activity.startService(new Intent(activity, AssistantOverlayService.class));
+            call.resolve(new JSObject().put("state", "started"));
+        } catch (RuntimeException error) {
+            call.reject("Abra o LifeOS e tente ativar a Toph novamente.");
         }
     }
 
     @PluginMethod
+    public void closePanel(PluginCall call) {
+        Activity activity = getActivity();
+        if (!(activity instanceof AssistantPanelActivity)) {
+            call.reject("O painel externo não está aberto.");
+            return;
+        }
+        activity.runOnUiThread(() -> {
+            if (Boolean.TRUE.equals(call.getBoolean("end"))) {
+                activity.stopService(new Intent(activity, AssistantOverlayService.class));
+            }
+            call.resolve();
+            activity.finish();
+        });
+    }
+
+    @PluginMethod
+    public void markOverlayDataChanged(PluginCall call) {
+        if (getActivity() instanceof AssistantPanelActivity) MainActivity.overlayDataChanged = true;
+        call.resolve();
+    }
+
+    @PluginMethod
     public void openSettings(PluginCall call) {
+        getActivity().runOnUiThread(() -> showAssistantSettings(call));
+    }
+
+    private void showAssistantSettings(PluginCall call) {
         try {
             if (Build.VERSION.SDK_INT >= 29) {
                 RoleManager roles = getActivity().getSystemService(RoleManager.class);
@@ -72,6 +145,10 @@ public class LifeOSAssistant extends Plugin {
 
     @PluginMethod
     public void dictate(PluginCall call) {
+        getActivity().runOnUiThread(() -> launchDictation(call));
+    }
+
+    private void launchDictation(PluginCall call) {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR");

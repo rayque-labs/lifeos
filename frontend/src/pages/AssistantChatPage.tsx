@@ -140,7 +140,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     } catch { setError('Não foi possível iniciar o microfone.'); setListening(false) }
   }
   return <div className={`mx-auto flex w-full max-w-3xl flex-col gap-3 text-[#F1F1ED] ${floating ? 'assistant-compact' : 'min-h-[65vh]'}`}>
-    {!floating && <div><h1 className="text-2xl font-bold">Assistente LifeOS</h1><p className="text-sm text-[#a3a5a9]">Chat e conversa por voz</p></div>}
+    {!floating && <div><h1 className="text-2xl font-bold">Toph</h1><p className="text-sm text-[#a3a5a9]">Chat e conversa por voz</p></div>}
     {!floating && <details className="rounded-2xl border border-[#34363a] bg-[#1d1e20] p-4" open={!key && AI_PROVIDERS[provider].requiresKey}>
       <summary className="cursor-pointer font-semibold">Conectar sua IA · {AI_PROVIDERS[provider].label}</summary>
       <p className="mt-2 text-xs text-[#a3a5a9]">Salve sua configuração criptografada neste aparelho para não precisar digitá-la novamente. Você pode substituir ou excluir a chave quando quiser.</p>

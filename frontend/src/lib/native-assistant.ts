@@ -1,8 +1,11 @@
-import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 
 interface NativeAssistantPlugin {
-  consumeLaunch(): Promise<{ active: boolean }>
-  addListener(event: 'assistantInvoked', listener: () => void): Promise<PluginListenerHandle>
+  getPanelMode(): Promise<{ external: boolean }>
+  getOverlayStatus(): Promise<{ defaultAssistant: boolean; allowed: boolean; running: boolean }>
+  toggleOverlay(): Promise<{ state: 'started' | 'stopped' | 'permission' }>
+  closePanel(options: { end: boolean }): Promise<void>
+  markOverlayDataChanged(): Promise<void>
   openSettings(): Promise<void>
   dictate(): Promise<{ text: string }>
   speak(options: { text: string }): Promise<void>

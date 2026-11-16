@@ -20,6 +20,21 @@ function currentRecords(): Array<[string, string]> {
   return records
 }
 
+function loadRows(rows: Record<string, unknown>[]) {
+  for (const key of Object.keys(localStorage).filter(key => key.startsWith(PREFIX))) localStorage.removeItem(key)
+  for (const row of rows) {
+    if (typeof row.key === 'string' && typeof row.value === 'string') localStorage.setItem(row.key, row.value)
+  }
+}
+
+export async function refreshOfflineStorage(): Promise<void> {
+  await initializeOfflineStorage()
+  if (!connection) return
+  await pending.catch(() => undefined)
+  const { values } = await connection.query('SELECT key, value FROM kv')
+  loadRows(values ?? [])
+}
+
 export function initializeOfflineStorage(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return Promise.resolve()
   if (startup) return startup
@@ -31,10 +46,7 @@ export function initializeOfflineStorage(): Promise<void> {
     const result = await db.query('SELECT key, value FROM kv')
     const rows = result.values || []
     if (rows.length > 0) {
-      for (const key of Object.keys(localStorage).filter(key => key.startsWith(PREFIX))) localStorage.removeItem(key)
-      for (const row of rows) {
-        if (typeof row.key === 'string' && typeof row.value === 'string') localStorage.setItem(row.key, row.value)
-      }
+      loadRows(rows)
     } else {
       for (const [key, value] of currentRecords()) await db.run('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)', [key, value])
     }

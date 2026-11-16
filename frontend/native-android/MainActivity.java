@@ -12,6 +12,29 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        AssistantOverlayService.activityVisibilityChanged(true);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (!(this instanceof AssistantPanelActivity) && overlayDataChanged && getBridge() != null) {
+            overlayDataChanged = false;
+            getBridge().triggerWindowJSEvent("lifeos:overlay-data-changed");
+        }
+    }
+
+    @Override
+    public void onStop() {
+        AssistantOverlayService.activityVisibilityChanged(false);
+        super.onStop();
+    }
+
+    static volatile boolean overlayDataChanged;
+
+    @Override
     protected void onNewIntent(Intent intent) {
         setIntent(intent);
         super.onNewIntent(intent);
