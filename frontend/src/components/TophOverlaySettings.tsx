@@ -56,7 +56,7 @@ export function TophOverlaySettings() {
         <h2 className="font-semibold">Toph flutuante</h2>
         <p className="text-sm opacity-75">{status?.running ? 'Ativa sobre outros apps.' :
           status && !status.defaultAssistant ? 'Selecione o LifeOS como assistente padrão para ativar a Toph.' :
-          'A Toph aparece sobre outros apps. O painel abre quando você toca nela.'}</p>
+          'A Toph aparece sobre outros apps. Toque nela para conversar por voz.'}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button disabled={busy} onClick={() => void toggle()}>{status?.running ? 'Encerrar Toph flutuante' : 'Ativar Toph flutuante'}</Button>

@@ -133,6 +133,11 @@ jobs:
           build_tools="$ANDROID_HOME/build-tools/35.0.0"
           "$build_tools/apksigner" verify --verbose "$apk"
           "$build_tools/aapt" dump badging "$apk" | grep "^package: name='com.rayquelabs.lifeos'"
+          "$build_tools/aapt" dump xmltree "$apk" AndroidManifest.xml > /tmp/lifeos-packaged-manifest.txt
+          if grep -Eq 'BIND_ACCESSIBILITY_SERVICE|android.accessibilityservice.AccessibilityService|BIND_NOTIFICATION_LISTENER_SERVICE|android.permission.(READ_SMS|RECEIVE_SMS)' /tmp/lifeos-packaged-manifest.txt; then
+            echo '::error::The APK declares a restricted service or SMS permission.'
+            exit 1
+          fi
       - name: Upload diagnostic logs even when build fails
         if: always()
         uses: actions/upload-artifact@v4

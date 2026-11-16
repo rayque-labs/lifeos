@@ -63,13 +63,10 @@ for action in ("android.intent.action.TTS_SERVICE", "android.speech.RecognitionS
     if queries.find(f"intent/action[@{{{ANDROID}}}name='{action}']") is None:
         update_element(ET.SubElement(queries, "intent"), "action", action)
 
-controls = update_element(app, "service", ".TophAccessibilityService",
-    exported="true", permission="android.permission.BIND_ACCESSIBILITY_SERVICE",
-    label="Toph — controle do Android")
-control_action = "android.accessibilityservice.AccessibilityService"
-if controls.find(f"intent-filter/action[@{{{ANDROID}}}name='{control_action}']") is None:
-    update_element(ET.SubElement(controls, "intent-filter"), "action", control_action)
-update_element(controls, "meta-data", "android.accessibilityservice", resource="@xml/toph_accessibility")
+legacy_controls = app.find(f"service[@{{{ANDROID}}}name='.TophAccessibilityService']")
+if legacy_controls is not None:
+    app.remove(legacy_controls)
+
 for package in ("com.whatsapp", "com.whatsapp.w4b", "com.android.chrome", "com.instagram.android", "com.facebook.katana", "com.facebook.lite",
                 "com.google.android.calendar", "com.google.android.calculator", "com.google.android.keep"):
     update_element(queries, "package", package)
@@ -80,8 +77,10 @@ tree.write(manifest, encoding="utf-8", xml_declaration=True)
 package_path = root / "java/com/rayquelabs/lifeos"
 native = Path(__file__).parent
 for source in native.glob("*.java"):
+    if source.name == "TophAccessibilityService.java":
+        (package_path / source.name).unlink(missing_ok=True)
+        continue
     shutil.copyfile(source, package_path / source.name)
 for style in ("overlay_styles.xml", "launch_styles.xml"):
     shutil.copyfile(native / style, root / "res/values" / f"lifeos_{style}")
 
-shutil.copyfile(native / "toph_accessibility.xml", root / "res/xml/toph_accessibility.xml")

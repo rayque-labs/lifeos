@@ -16,8 +16,6 @@ import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
-import android.view.Window;
-import android.view.WindowManager;
 import androidx.activity.result.ActivityResult;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
@@ -120,18 +118,6 @@ public class LifeOSAssistant extends Plugin {
     }
 
     @PluginMethod
-    public void openAccessibilitySettings(PluginCall call) {
-        getActivity().runOnUiThread(() -> {
-            try {
-                getActivity().startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-                call.resolve();
-            } catch (ActivityNotFoundException error) {
-                call.reject("Abra Acessibilidade nas Configurações do Android.");
-            }
-        });
-    }
-
-    @PluginMethod
     public void openExternal(PluginCall call) {
         Uri uri = Uri.parse(call.getString("url", ""));
         if (!"https".equals(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null) {
@@ -167,72 +153,7 @@ public class LifeOSAssistant extends Plugin {
 
     @PluginMethod
     public void inspectScreen(PluginCall call) {
-        getActivity().runOnUiThread(() -> {
-            TophAccessibilityService service = TophAccessibilityService.connected;
-            if (service == null) {
-                call.reject("Ative Toph — controle do Android em Acessibilidade.");
-            } else if (!(getActivity() instanceof AssistantConversationActivity)) {
-                call.reject("Abra a Toph flutuante sobre a tela que quer analisar.");
-            } else if (getActivity().getSystemService(android.app.KeyguardManager.class).isDeviceLocked()) {
-                call.reject("Desbloqueie o Android para analisar a tela.");
-            } else {
-                try {
-                    String summary = service.describeScreen();
-                    if (summary != null) call.resolve(new JSObject().put("summary", summary));
-                    else inspectBehindPanel(call, service);
-                } catch (IllegalStateException error) {
-                    call.reject(error.getMessage());
-                }
-            }
-        });
-    }
-
-    private boolean screenReadPending;
-
-    private void inspectBehindPanel(PluginCall call, TophAccessibilityService service) {
-        if (screenReadPending) {
-            call.reject("Uma leitura de tela já está em andamento.");
-            return;
-        }
-        screenReadPending = true;
-        Window window = getActivity().getWindow();
-        WindowManager.LayoutParams previous = new WindowManager.LayoutParams();
-        previous.copyFrom(window.getAttributes());
-        WindowManager.LayoutParams temporary = new WindowManager.LayoutParams();
-        temporary.copyFrom(previous);
-        temporary.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
-        temporary.alpha = 0f;
-        window.setAttributes(temporary);
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            try {
-                if (destroyed || TophAccessibilityService.connected != service ||
-                    getActivity().getSystemService(android.app.KeyguardManager.class).isDeviceLocked()) {
-                    call.reject("A leitura da tela foi interrompida.");
-                    return;
-                }
-                String summary = service.describeScreen();
-                if (summary == null) call.reject("Não consegui identificar o app atrás da Toph.");
-                else call.resolve(new JSObject().put("summary", summary));
-            } catch (IllegalStateException error) {
-                call.reject(error.getMessage());
-            } finally {
-                if (!destroyed) window.setAttributes(previous);
-                screenReadPending = false;
-            }
-        }, 240);
-    }
-
-    private void runWhenFocused(TophAccessibilityService service, String target, String action,
-                                String text, int x, int y, int remaining) {
-        if (TophAccessibilityService.connected != service) return;
-        if (service.targetFocused(target)) {
-            service.perform(target, action, text, x, y);
-        } else if (remaining > 0) {
-            new Handler(Looper.getMainLooper()).postDelayed(
-                () -> runWhenFocused(service, target, action, text, x, y, remaining - 1), 120);
-        } else {
-            service.notice("O aplicativo solicitado não voltou ao primeiro plano.");
-        }
+        call.reject("A leitura de telas de outros aplicativos está indisponível nesta versão.");
     }
 
     @PluginMethod
@@ -270,32 +191,7 @@ public class LifeOSAssistant extends Plugin {
                 }
                 return;
             }
-            if (target.startsWith("com.facebook.") || !("up".equals(action) || "down".equals(action) ||
-                "type".equals(action) || "tap".equals(action) || "click".equals(action))) {
-                call.reject("Esse controle não está disponível para este aplicativo.");
-                return;
-            }
-            TophAccessibilityService service = TophAccessibilityService.connected;
-            if (service == null || Build.VERSION.SDK_INT < 24) {
-                call.reject("Ative Toph — controle do Android em Acessibilidade.");
-                return;
-            }
-            if (!(getActivity() instanceof AssistantConversationActivity)) {
-                call.reject("Abra a Toph flutuante por cima do aplicativo que deseja controlar.");
-                return;
-            }
-            String text = call.getString("text", "");
-            int x = call.getInt("x", -1);
-            int y = call.getInt("y", -1);
-            if (("tap".equals(action) && (x < 0 || x > 100 || y < 0 || y > 100)) ||
-                (("type".equals(action) || "click".equals(action)) && (text.trim().isEmpty() || text.length() > 500))) {
-                call.reject("Gesto ou texto inválido.");
-                return;
-            }
-            call.resolve();
-            getActivity().finish();
-            new Handler(Looper.getMainLooper()).postDelayed(
-                () -> runWhenFocused(service, target, action, text, x, y, 14), 150);
+            call.reject("Gestos em outros aplicativos estão indisponíveis nesta versão.");
         });
     }
 
