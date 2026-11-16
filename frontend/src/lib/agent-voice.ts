@@ -18,14 +18,42 @@ const localKey = (user: string) => `local-voice-key:${user}`
 export const loadLocalVoice = (user: string) => loadEncrypted<LocalVoiceConfig>(localSlot(user), localKey(user))
 export const deleteLocalVoice = (user: string) => deleteEncrypted(localSlot(user), localKey(user))
 
-export async function saveLocalVoice(user: string, { endpoint, token, file }: LocalVoiceInput) {
+function voiceServerUrl(endpoint: string) {
   let url: URL
   try { url = new URL(endpoint.trim()) } catch { throw new Error('Informe o endereço do servidor de voz.') }
   const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
   if (url.username || url.password || url.search || url.hash || (url.protocol !== 'https:' && !(loopback && url.protocol === 'http:'))) {
     throw new Error('Use HTTPS para o servidor de voz ou HTTP no endereço local 127.0.0.1.')
   }
-  if (!loopback && !token.trim()) throw new Error('Informe o token do seu servidor de voz.')
+  return { endpoint: url.href.replace(/\/+$/, ''), loopback }
+}
+
+export async function checkVoiceServer(address: string): Promise<boolean> {
+  const { endpoint } = voiceServerUrl(address)
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 8000)
+  try {
+    const response = await fetch(endpoint + '/health', {
+      signal: controller.signal, redirect: 'error', cache: 'no-store',
+    })
+    if (!response.ok) throw new Error(`O endereço respondeu com HTTP ${response.status} ao verificar o Voice Lab.`)
+    const health = await response.json().catch(() => null) as { status?: unknown; engine?: unknown; loaded?: unknown } | null
+    if (health?.status !== 'ok' || health.engine !== 'xtts_v2' || typeof health.loaded !== 'boolean') {
+      throw new Error('O endereço respondeu, mas não foi identificado como um Voice Lab LifeOS.')
+    }
+    return health.loaded
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('O Voice Lab demorou para responder. Confira o endereço e a conexão.')
+    if (error instanceof TypeError) throw new Error('O celular não conseguiu acessar o Voice Lab. Confira o endereço HTTPS, o certificado e a rede.')
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
+export async function saveLocalVoice(user: string, { endpoint, token, file }: LocalVoiceInput) {
+  const server = voiceServerUrl(endpoint)
+  if (!server.loopback && !token.trim()) throw new Error('Informe o token do seu servidor de voz.')
   if (!/\.wav$/i.test(file.name) || file.size < 1024 || file.size > 10 * 1024 * 1024) {
     throw new Error('Selecione uma gravação WAV válida de até 10 MB.')
   }
@@ -36,7 +64,7 @@ export async function saveLocalVoice(user: string, { endpoint, token, file }: Lo
     reader.readAsDataURL(file)
   })
   await saveEncrypted(localSlot(user), localKey(user), {
-    endpoint: url.href.replace(/\/+$/, ''), token: token.trim(), sample, filename: file.name,
+    endpoint: server.endpoint, token: token.trim(), sample, filename: file.name,
   } satisfies LocalVoiceConfig)
 }
 
