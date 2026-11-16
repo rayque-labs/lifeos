@@ -40,6 +40,20 @@ jobs:
           npm pkg set 'dependencies.@capacitor/core=^7' 'dependencies.@capacitor/android=^7' 'dependencies.@capacitor-community/sqlite=^7' 'dependencies.@capacitor/local-notifications=^7'
           npm pkg set 'devDependencies.@capacitor/cli=^7'
           node -e "const p=require('./package.json'); for(const n of ['@capacitor-community/sqlite','@capacitor/local-notifications']) if(!p.dependencies[n]) process.exit(1)"
+      - name: Preflight frontend lint and dependency checks
+        run: |
+          npm run lint
+          node - <<'JS'
+          const fs = require('node:fs');
+          const p = require('./package.json');
+          for (const name of ['react', 'react-dom', 'vite', 'typescript']) {
+            if (!(p.dependencies?.[name] || p.devDependencies?.[name])) throw Error('Missing dependency: ' + name);
+          }
+          for (const file of ['capacitor.config.ts', 'public/lifeos-original.png', 'src/components/GeminiConnectionSettings.tsx']) {
+            if (!fs.existsSync(file)) throw Error('Missing required file: ' + file);
+          }
+          console.log('Frontend preflight OK');
+          JS
       - name: Build offline web app
         env:
           VITE_OFFLINE_MODE: 'true'
@@ -62,6 +76,15 @@ jobs:
           Path("capacitor.config.ts").unlink()
           PY
           test -f capacitor.config.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          c = json.loads(Path('capacitor.config.json').read_text())
+          assert c['appId'] == 'com.rayquelabs.lifeos'
+          assert c['webDir'] == 'dist'
+          assert Path('dist/index.html').is_file()
+          print('Capacitor JSON and offline web bundle OK')
+          PY
           npx cap add android
           test -f android/gradlew
           npx cap sync android
@@ -111,13 +134,36 @@ jobs:
                   raise
           print('All generated Android XML files parsed successfully')
           PY
-      - name: Verify merged APK manifest and debug signature
+      - name: Preflight native resources and plugin registration
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          base = Path('android/app/src/main')
+          plugins = json.loads((base/'assets/capacitor.plugins.json').read_text())
+          classes = ' '.join(str(x) for x in plugins)
+          assert 'CapacitorSQLite' in classes, 'SQLite plugin missing'
+          assert 'LocalNotifications' in classes, 'LocalNotifications plugin missing'
+          for density in ('mdpi','hdpi','xhdpi','xxhdpi','xxxhdpi'):
+              for icon in ('ic_launcher.png','ic_launcher_round.png','ic_launcher_foreground.png'):
+                  assert (base/'res'/('mipmap-'+density)/icon).is_file(), f'Missing {density}/{icon}'
+          for icon in ('ic_launcher.xml','ic_launcher_round.xml'):
+              assert (base/'res/mipmap-anydpi-v26'/icon).is_file(), f'Missing adaptive icon: {icon}'
+          print('Native plugins and launcher resources OK')
+          PY
+      - name: Verify merged APK manifest
+
         run: |
           cd android
           chmod +x gradlew
           ./gradlew :app:processDebugMainManifest --no-daemon --stacktrace 2>&1 | tee ../android-manifest-build.log
           test ${PIPESTATUS[0]} -eq 0
           find app/build/intermediates -name AndroidManifest.xml -path '*merged_manifests*' -print | head -5
+      - name: Preflight Gradle compilation (without packaging APK)
+        run: |
+          cd android
+          ./gradlew :app:compileDebugJavaWithJavac --no-daemon --stacktrace 2>&1 | tee ../android-compile-preflight.log
+          test ${PIPESTATUS[0]} -eq 0
       - name: Build debug APK
         run: |
           cd android
@@ -132,6 +178,7 @@ jobs:
           path: |
             frontend/android-build.log
             frontend/android-manifest-build.log
+            frontend/android-compile-preflight.log
             frontend/android/app/build/outputs/logs/
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
