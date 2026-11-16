@@ -12,6 +12,7 @@ export function SettingsPage() {
   const navigate = useNavigate()
   const [name, setName] = useState(user?.full_name || '')
   const [preferredName, setPreferredName] = useState(() => localStorage.getItem('lifeos:preferred-name:v1') || '')
+  const [agentName, setAgentName] = useState(() => localStorage.getItem('lifeos:agent-name:v1') || '')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [error, setError] = useState('')
@@ -28,8 +29,9 @@ export function SettingsPage() {
         await patch('/auth/me', { full_name: name.trim() })
       }
       localStorage.setItem('lifeos:preferred-name:v1', preferredName.trim())
+      localStorage.setItem('lifeos:agent-name:v1', agentName.trim())
       await refreshUser()
-      setMessage('Perfil atualizado. Nome de tratamento salvo neste dispositivo.')
+      setMessage('Perfil e nomes personalizados salvos neste dispositivo.')
     }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível atualizar o perfil.') }
     finally { setBusy(false) }
@@ -51,7 +53,7 @@ export function SettingsPage() {
     {import.meta.env.VITE_OFFLINE_MODE === 'true' && <div className="mb-5"><OfflineBackup /></div>}
     {<div className="grid gap-5 xl:grid-cols-[1.1fr_.9fr]">
       <Card><div className="mb-5 flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eaf0e7] text-[#648063]"><UserRound size={18} /></span><div><h2 className="font-semibold text-[#30483a]">Perfil</h2><p className="mt-1 text-xs text-[#8c9990]">Informações básicas da sua conta.</p></div></div>
-        <form onSubmit={saveProfile} className="space-y-4"><Field label="Nome do usuário"><Input required minLength={1} maxLength={120} value={name} onChange={event => setName(event.target.value)} autoComplete="name" /></Field><Field label="Como a Souza deve me chamar?"><Input maxLength={60} value={preferredName} onChange={event => setPreferredName(event.target.value)} placeholder="Ex.: Rayque" /></Field><Field label="E-mail"><div className="relative"><Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#99a59c]" /><Input className="pl-9" value={user?.email || ''} readOnly aria-readonly="true" /></div></Field><div className="flex items-center gap-2 text-xs text-[#7b897f]"><ShieldCheck size={15} className="text-[#6e9460]" />Conta pessoal protegida por senha.</div><Button type="submit" busy={busy}>Salvar perfil</Button></form>
+        <form onSubmit={saveProfile} className="space-y-4"><Field label="Nome do usuário"><Input required minLength={1} maxLength={120} value={name} onChange={event => setName(event.target.value)} autoComplete="name" /></Field><Field label="Como seu assistente deve chamar você?"><Input maxLength={60} value={preferredName} onChange={event => setPreferredName(event.target.value)} placeholder="Ex.: Rayque" /></Field><Field label="Nome do seu agente"><Input maxLength={60} value={agentName} onChange={event => setAgentName(event.target.value)} placeholder="Escolha o nome do assistente" /></Field><Field label="E-mail"><div className="relative"><Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#99a59c]" /><Input className="pl-9" value={user?.email || ''} readOnly aria-readonly="true" /></div></Field><div className="flex items-center gap-2 text-xs text-[#7b897f]"><ShieldCheck size={15} className="text-[#6e9460]" />Conta pessoal protegida por senha.</div><Button type="submit" busy={busy}>Salvar perfil</Button></form>
       </Card>
       {import.meta.env.VITE_OFFLINE_MODE !== "true" && <Card><div className="mb-5 flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f2ecfa] text-[#8565a1]"><KeyRound size={18} /></span><div><h2 className="font-semibold text-[#30483a]">Senha e segurança</h2><p className="mt-1 text-xs text-[#8c9990]">Tokens ativos são revogados após a troca.</p></div></div>
         <form onSubmit={savePassword} className="space-y-4"><Field label="Senha atual"><Input type="password" required maxLength={128} autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} /></Field><Field label="Nova senha" hint="No mínimo 12 caracteres."><Input type="password" required minLength={12} maxLength={128} autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} /></Field><Button type="submit" variant="secondary" busy={busy}>Alterar senha</Button></form><div className="mt-5 flex items-center justify-between rounded-xl bg-[#f7f8f5] px-3.5 py-3"><div><p className="text-xs font-semibold text-[#526459]">Recuperação de senha</p><p className="mt-0.5 text-[11px] text-[#919d94]">Disponível quando o serviço de e-mail estiver configurado.</p></div><Badge tone="blue">SMTP</Badge></div>
