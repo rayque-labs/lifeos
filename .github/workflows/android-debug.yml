@@ -1,4 +1,4 @@
-name: Android debug APK
+name: Android diagnostic APK (minimal permissions)
 
 on:
   workflow_dispatch:
@@ -78,55 +78,38 @@ jobs:
           for name in ('ic_launcher.xml','ic_launcher_round.xml'):
               (adaptive/name).write_text('<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/lifeos_launcher_background"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>')
           PY
-      - name: Enable Android immersive mode
+      - name: Apply minimal-permission diagnostic configuration
         run: |
-          cat > android/app/src/main/java/com/rayquelabs/lifeos/MainActivity.java <<'JAVA'
-          package com.rayquelabs.lifeos;
-
-          import android.os.Bundle;
-          import android.view.View;
-          import com.getcapacitor.BridgeActivity;
-
-          public class MainActivity extends BridgeActivity {
-            private void enableImmersiveMode() {
-              getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-              );
-            }
-
-            @Override
-            public void onCreate(Bundle savedInstanceState) {
-              super.onCreate(savedInstanceState);
-              enableImmersiveMode();
-            }
-
-            @Override
-            public void onWindowFocusChanged(boolean hasFocus) {
-              super.onWindowFocusChanged(hasFocus);
-              if (hasFocus) enableImmersiveMode();
-            }
-          }
-          JAVA
-      - name: Install native LifeOS alarm components
-        run: |
-          cp native-alarm/*.java android/app/src/main/java/com/rayquelabs/lifeos/
           python - <<'PY'
           from pathlib import Path
-          p = Path('android/app/src/main/AndroidManifest.xml')
-          s = p.read_text()
-          s = s.replace('<application', '<uses-permission android:name="android.permission.VIBRATE" /><uses-permission android:name="android.permission.POST_NOTIFICATIONS" /><uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" /><uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" /><uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" /><application', 1)
-          s = s.replace('</application>', '<receiver android:name=".AlarmReceiver" android:exported="false" /><activity android:name=".AlarmActivity" android:exported="false" android:showWhenLocked="true" android:turnScreenOn="true" android:theme="@android:style/Theme.Material.NoActionBar" /></application>', 1)
-          p.write_text(s)
-          main = Path('android/app/src/main/java/com/rayquelabs/lifeos/MainActivity.java')
-          s = main.read_text().replace('super.onCreate(savedInstanceState);', 'registerPlugin(LifeOSAlarmPlugin.class);\n              registerPlugin(LifeOSUsagePlugin.class);\\n              super.onCreate(savedInstanceState);')
-          s = s.replace('\\n', '\n')
-          main.write_text(s)
+          import xml.etree.ElementTree as ET
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          ns = '{http://schemas.android.com/apk/res/android}'
+          tree = ET.parse(manifest)
+          root = tree.getroot()
+          # Diagnostic only: remove special permissions inherited from dependencies.
+          forbidden = {
+            'android.permission.PACKAGE_USAGE_STATS',
+            'android.permission.USE_FULL_SCREEN_INTENT',
+            'android.permission.SCHEDULE_EXACT_ALARM',
+            'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+            'android.permission.SYSTEM_ALERT_WINDOW',
+            'android.permission.QUERY_ALL_PACKAGES',
+            'android.permission.BIND_NOTIFICATION_LISTENER_SERVICE',
+          }
+          for item in list(root):
+              if item.tag in ('uses-permission', 'uses-permission-sdk-23') and item.get(ns + 'name') in forbidden:
+                  root.remove(item)
+          ET.indent(tree, space='  ')
+          tree.write(manifest, encoding='utf-8', xml_declaration=True)
+          print('Diagnostic manifest prepared; native alarm and usage plugins intentionally disabled.')
           PY
+      - name: Verify merged APK manifest and debug signature
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew :app:processDebugMainManifest --no-daemon
+          find app/build/intermediates -name AndroidManifest.xml -path '*merged_manifests*' -print | head -5
       - name: Build debug APK
         run: |
           cd android
@@ -134,6 +117,6 @@ jobs:
           ./gradlew assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: lifeos-monolith-debug-apk
+          name: lifeos-diagnostic-minimal-apk
           path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
