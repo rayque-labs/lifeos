@@ -81,6 +81,7 @@ export function SettingsPage() {
           <p className="text-sm" role="status">Respostas armazenadas: {feedbackCount}</p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="secondary" onClick={() => { if (user?.id) setFeedbackCount(readSuggestionFeedback(user.id).length) }}>Atualizar contagem</Button>
+            <Button type="button" variant="secondary" onClick={() => { if (!user?.id) return; const records = readSuggestionFeedback(user.id); const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), records }, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'lifeos-agent-feedback.json'; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000) }}>Exportar histórico</Button>
             <Button type="button" variant="secondary" onClick={() => { if (!user?.id || !window.confirm('Apagar todo o histórico local de respostas do agente?')) return; clearSuggestionFeedback(user.id); setFeedbackCount(0); setMessage('Histórico de sugestões apagado deste dispositivo.') }}>Apagar histórico</Button>
           </div>
         </div>
