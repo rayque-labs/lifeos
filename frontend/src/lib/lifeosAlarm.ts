@@ -1,19 +1,20 @@
-import { registerPlugin } from '@capacitor/core'
-
 type AlarmOptions = { id: number; at: number; title: string; speech: string }
 type AlarmPlugin = {
   schedule(options: AlarmOptions): Promise<{ exact: boolean }>
   cancel(options: { id: number }): Promise<void>
 }
-const nativeAlarm = registerPlugin<AlarmPlugin>('LifeOSAlarm')
+function plugin(): AlarmPlugin | null {
+  const host = window as Window & { Capacitor?: { Plugins?: { LifeOSAlarm?: AlarmPlugin } } }
+  return host.Capacitor?.Plugins?.LifeOSAlarm ?? null
+}
 
 export async function scheduleLifeOSAlarm(options: AlarmOptions): Promise<{ exact: boolean } | null> {
-  if (!('Capacitor' in window)) return null
-  return nativeAlarm.schedule(options)
+  const nativeAlarm = plugin()
+  return nativeAlarm ? nativeAlarm.schedule(options) : null
 }
 export async function cancelLifeOSAlarm(id: number): Promise<void> {
-  if (!('Capacitor' in window)) return
-  await nativeAlarm.cancel({ id })
+  const nativeAlarm = plugin()
+  if (nativeAlarm) await nativeAlarm.cancel({ id })
 }
 
 export function alarmSpeech(title: string, category?: string | null): string {
