@@ -42,9 +42,11 @@ jobs:
         run: npm run build
       - name: Generate Android project
         run: |
-          rm capacitor.config.ts
+          # Preserve capacitor.config.ts: Capacitor needs appId, appName and webDir.
+          test -f capacitor.config.ts
           npm pkg set 'dependencies.@capacitor/core=^7' 'dependencies.@capacitor/android=^7' 'dependencies.@capacitor-community/sqlite=^7' 'dependencies.@capacitor/local-notifications=^7'
           npx cap add android
+          test -f android/gradlew
           npx cap sync android
           echo 'Checking native SQLite registration:'
           cat android/app/src/main/assets/capacitor.plugins.json
