@@ -5,6 +5,8 @@ type Input = Omit<ChatMessage, 'id'> & { id?: string }
 export function useConversation(account: string | undefined, intro: ChatMessage) {
   const [messages, render] = useState<ChatMessage[]>([intro])
   const [ready, setReady] = useState(false)
+  const [loadedAccount, setLoadedAccount] = useState('')
+  const [sessionEpoch, setSessionEpoch] = useState('')
   const [storageError, setStorageError] = useState('')
   const current = useRef({ account: '', epoch: '', messages: [intro] })
   const queue = useRef<Promise<unknown>>(Promise.resolve())
@@ -20,7 +22,7 @@ export function useConversation(account: string | undefined, intro: ChatMessage)
         const loaded = await loadConversation(account)
         if (!active || current.current !== before) return
         current.current = { account, epoch: loaded.epoch, messages: [intro, ...loaded.messages] }
-        render(current.current.messages); setReady(true)
+        render(current.current.messages); setSessionEpoch(loaded.epoch); setLoadedAccount(account); setReady(true)
       } catch { if (active) { setReady(false); setStorageError('Não consegui recuperar a conversa. Reabra o painel; não vou substituir o histórico salvo.') } }
     }
     const visible = () => { if (!document.hidden) void refresh() }
@@ -33,7 +35,7 @@ export function useConversation(account: string | undefined, intro: ChatMessage)
   }, [account, intro])
   const setMessages = useCallback((update: (messages: ChatMessage[]) => Input[]) => {
     const snapshot = current.current
-    if (!account || snapshot.account !== account || !snapshot.epoch) return Promise.reject(Error('Aguarde a conversa ser recuperada.'))
+    if (!account || snapshot.account !== account || !snapshot.epoch || snapshot.epoch !== sessionEpoch) return Promise.reject(Error('Aguarde a conversa ser recuperada.'))
     const next = update(snapshot.messages).map(m => ({ ...m, id: m.id ?? crypto.randomUUID() }))
     const changed = next.filter(m => m.id !== 'intro' && JSON.stringify(m) !== JSON.stringify(snapshot.messages.find(old => old.id === m.id)))
     current.current = { ...snapshot, messages: next }
@@ -41,14 +43,14 @@ export function useConversation(account: string | undefined, intro: ChatMessage)
     const saving = queue.current.catch(() => {}).then(() => saveConversationMessages(snapshot.account, snapshot.epoch, changed))
     queue.current = saving.catch(() => { setStorageError('Não foi possível salvar esta etapa. Não feche o painel; confira o armazenamento do aparelho.') })
     return saving
-  }, [account])
+  }, [account, sessionEpoch])
   const clear = useCallback(async () => {
     if (!account) return
     await queue.current
     const epoch = await clearConversation(account)
     if (current.current.account !== account) return
     current.current = { account, epoch, messages: [intro] }
-    render([intro]); setStorageError('')
+    render([intro]); setSessionEpoch(epoch); setStorageError('')
   }, [account, intro])
-  return { messages: current.current.account === account ? messages : [intro], setMessages, clear, ready: ready && current.current.account === account, storageError }
+  return { messages: loadedAccount === account ? messages : [intro], setMessages, clear, ready: ready && loadedAccount === account, storageError }
 }
