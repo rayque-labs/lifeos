@@ -1,12 +1,15 @@
+import { SectionBanner } from '../components/Personalization'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, Link2, Plus, Trash2, X } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, ErrorMessage, Field, Input, LoadingState, PageHeading, Select, Textarea } from '../components/ui'
 import { get, patch, post, remove } from '../lib/api'
 import type { CalendarEvent, Task } from '../lib/types'
+import { alarmSpeech, cancelLifeOSAlarm, scheduleLifeOSAlarm } from '../lib/lifeosAlarm'
 
 type View = 'month' | 'week'
-type Draft = { title: string; description: string; startsAt: string; endsAt: string; allDay: boolean; taskId: string }
-const emptyDraft: Draft = { title: '', description: '', startsAt: '', endsAt: '', allDay: false, taskId: '' }
+type Draft = { title: string; description: string; startsAt: string; endsAt: string; allDay: boolean; taskId: string; reminders: string[]; ringtone: string; fullScreenAlert: boolean }
+const emptyDraft: Draft = { title: '', description: '', startsAt: '', endsAt: '', allDay: false, taskId: '', reminders: ['0'], ringtone: 'classic', fullScreenAlert: false }
+const eventAlarmId = (id: number, index: number) => 100000000 + id * 16 + index
 const pad = (n: number) => String(n).padStart(2, '0')
 const dateKey = (value: Date) => `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`
 const dateTimeInput = (value: string) => { const date = new Date(value); return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16) }
@@ -56,19 +59,50 @@ export function CalendarPage() {
   }
   const openEdit = (event: CalendarEvent) => {
     setEditing(event.id); setFormOpen(true)
-    setDraft({ title: event.title, description: event.description || '', startsAt: dateTimeInput(event.starts_at), endsAt: dateTimeInput(event.ends_at), allDay: event.all_day, taskId: event.task_id ? String(event.task_id) : '' })
+    setDraft({ title: event.title, description: event.description || '', startsAt: dateTimeInput(event.starts_at), endsAt: dateTimeInput(event.ends_at), allDay: event.all_day, taskId: event.task_id ? String(event.task_id) : '', reminders: event.reminders?.map(String) || ['0'], ringtone: event.ringtone || 'classic', fullScreenAlert: Boolean(event.full_screen_alert) })
   }
   const cancel = () => { setFormOpen(false); setEditing(null); setDraft(emptyDraft) }
   const submit = async (formEvent: FormEvent) => {
     formEvent.preventDefault(); setBusy(true); setError('')
-    const payload = { title: draft.title, description: draft.description || null, starts_at: new Date(draft.startsAt).toISOString(), ends_at: new Date(draft.endsAt).toISOString(), all_day: draft.allDay, task_id: draft.taskId ? Number(draft.taskId) : null }
-    try { if (editing) await patch(`/calendar/events/${editing}`, payload); else await post('/calendar/events/', payload); cancel(); await load() }
+    const payload = { title: draft.title, description: draft.description || null, starts_at: new Date(draft.startsAt).toISOString(), ends_at: new Date(draft.endsAt).toISOString(), all_day: draft.allDay, task_id: draft.taskId ? Number(draft.taskId) : null, reminders: draft.reminders.map(Number), ringtone: draft.ringtone, full_screen_alert: draft.fullScreenAlert }
+    try {
+      const saved = editing
+        ? await patch<CalendarEvent>(`/calendar/events/${editing}`, payload)
+        : await post<CalendarEvent>('/calendar/events/', payload)
+      const eventId = editing || saved?.id
+      if (eventId) {
+        for (let index = 0; index < 12; index++) {
+          try { await cancelLifeOSAlarm(eventAlarmId(eventId, index)) }
+          catch (reason) { console.warn('Falha ao cancelar aviso anterior:', reason) }
+        }
+        const start = new Date(draft.startsAt).getTime()
+        for (const [index, minutes] of draft.reminders.entries()) {
+          const at = start - Number(minutes) * 60000
+          if (draft.fullScreenAlert && at > Date.now()) {
+            try {
+              await scheduleLifeOSAlarm({
+                id: eventAlarmId(eventId, index), at, title: draft.title,
+                speech: alarmSpeech(draft.title), category: 'compromisso'
+              })
+            } catch (reason) { console.warn('Falha ao agendar aviso do calendário:', reason) }
+          }
+        }
+      }
+      cancel(); await load()
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível salvar o evento.') }
     finally { setBusy(false) }
   }
   const deleteEvent = async (event: CalendarEvent) => {
     if (!window.confirm(`Excluir o compromisso “${event.title}”?`)) return
-    try { await remove(`/calendar/events/${event.id}`); await load() }
+    try {
+      await remove(`/calendar/events/${event.id}`)
+      for (let index = 0; index < 12; index++) {
+        try { await cancelLifeOSAlarm(eventAlarmId(event.id, index)) }
+        catch (reason) { console.warn('Falha ao cancelar aviso:', reason) }
+      }
+      await load()
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Não foi possível excluir o evento.') }
   }
   const shift = (delta: number) => setCursor(current => view === 'month' ? new Date(current.getFullYear(), current.getMonth() + delta, 1) : addDays(current, delta * 7))
@@ -77,10 +111,11 @@ export function CalendarPage() {
     : `${new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short' }).format(visibleStart)} – ${new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' }).format(addDays(visibleEnd, -1))}`
 
   return <>
+    <SectionBanner section="calendar" />
     <PageHeading title="Calendário" description="Compromissos e tarefas com horário, em uma agenda sua." action={<Button onClick={() => openNew(cursor)}><Plus size={16} />Novo evento</Button>} />
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
     {formOpen && <Card className="mb-5 !border-[#dce7d8]"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-semibold text-[#30483a]">{editing ? 'Editar compromisso' : 'Novo compromisso'}</h2><p className="mt-1 text-xs text-[#859187]">Datas enviadas com o fuso horário do seu dispositivo.</p></div><button aria-label="Fechar" onClick={cancel} className="rounded-lg p-1.5 text-[#859187] hover:bg-[#f0f3ee]"><X size={18} /></button></div>
-      <form onSubmit={submit} className="grid gap-4 md:grid-cols-2"><Field label="Título"><Input autoFocus required maxLength={200} value={draft.title} onChange={event => setDraft({ ...draft, title: event.target.value })} placeholder="Ex.: Consulta médica" /></Field><Field label="Vincular tarefa"><Select value={draft.taskId} onChange={event => setDraft({ ...draft, taskId: event.target.value })}><option value="">Sem tarefa vinculada</option>{tasks.map(task => <option key={task.id} value={task.id}>{task.title}</option>)}</Select></Field><Field label="Começa em"><Input type="datetime-local" required value={draft.startsAt} onChange={event => setDraft({ ...draft, startsAt: event.target.value })} /></Field><Field label="Termina em"><Input type="datetime-local" required value={draft.endsAt} onChange={event => setDraft({ ...draft, endsAt: event.target.value })} /></Field><div className="md:col-span-2"><Field label="Descrição"><Textarea value={draft.description} onChange={event => setDraft({ ...draft, description: event.target.value })} placeholder="Detalhes do compromisso…" /></Field></div><label className="flex items-center gap-2 text-sm text-[#66766b]"><input type="checkbox" className="h-4 w-4 accent-[#527653]" checked={draft.allDay} onChange={event => setDraft({ ...draft, allDay: event.target.checked })} />Evento de dia inteiro</label><div className="flex gap-2 md:col-span-2"><Button type="submit" busy={busy}>{editing ? 'Salvar alterações' : 'Criar compromisso'}</Button><Button type="button" variant="secondary" onClick={cancel}>Cancelar</Button></div></form>
+      <form onSubmit={submit} className="grid gap-4 md:grid-cols-2"><Field label="Título"><Input autoFocus required maxLength={200} value={draft.title} onChange={event => setDraft({ ...draft, title: event.target.value })} placeholder="Ex.: Consulta médica" /></Field><Field label="Vincular tarefa"><Select value={draft.taskId} onChange={event => setDraft({ ...draft, taskId: event.target.value })}><option value="">Sem tarefa vinculada</option>{tasks.map(task => <option key={task.id} value={task.id}>{task.title}</option>)}</Select></Field><Field label="Começa em"><Input type="datetime-local" required value={draft.startsAt} onChange={event => setDraft({ ...draft, startsAt: event.target.value })} /></Field><Field label="Termina em"><Input type="datetime-local" required value={draft.endsAt} onChange={event => setDraft({ ...draft, endsAt: event.target.value })} /></Field><div className="md:col-span-2 rounded-xl border border-[#555B66] bg-[#101010] p-4 text-[#F1F1ED]"><h3 className="mb-1 font-semibold text-[#C5FF4A]">Alarmes e lembretes</h3><p className="mb-3 text-xs text-[#c3c7c1]">Escolha quantas vezes quer ser avisado. Os horários são relativos ao início do compromisso.</p><div className="mb-3 flex flex-wrap gap-2">{draft.reminders.map((minutes, index) => <div key={index} className="flex items-center gap-1"><Select aria-label={`Horário do aviso ${index+1}`} value={minutes} onChange={event => setDraft(current => ({...current,reminders:current.reminders.map((value,i)=>i===index?event.target.value:value)}))}><option value="0">Na hora</option><option value="5">5 min antes</option><option value="10">10 min antes</option><option value="15">15 min antes</option><option value="30">30 min antes</option><option value="60">1 hora antes</option><option value="120">2 horas antes</option><option value="1440">1 dia antes</option><option value="2880">2 dias antes</option><option value="10080">7 dias antes</option></Select><button type="button" aria-label="Remover aviso" onClick={() => setDraft(current => ({...current,reminders:current.reminders.filter((_,i)=>i!==index)}))} className="rounded p-1 text-[#FF4D57]"><X size={15}/></button></div>)}</div><button type="button" disabled={draft.reminders.length>=12} onClick={() => setDraft(current=>({...current,reminders:[...current.reminders,'0']}))} className="mb-4 rounded-lg border border-[#C5FF4A] px-3 py-2 text-xs font-semibold text-[#C5FF4A] disabled:opacity-40">+ Adicionar outro aviso</button><div className="grid gap-3 sm:grid-cols-2"><Field label="Toque do alarme"><Select value={draft.ringtone} onChange={event=>setDraft(current=>({...current,ringtone:event.target.value}))}><option value="classic">Clássico</option><option value="digital">Digital</option><option value="gentle">Suave</option><option value="urgent">Urgente</option></Select></Field><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.fullScreenAlert} onChange={event=>setDraft(current=>({...current,fullScreenAlert:event.target.checked}))}/> Solicitar alerta em tela cheia</label></div><p className="mt-3 text-xs text-[#c3c7c1]">As preferências serão salvas. No Android, os avisos são agendados pelo sistema nativo. A tela cheia depende das permissões do aparelho; no navegador, não há disparo nativo.</p></div><div className="md:col-span-2"><Field label="Descrição"><Textarea value={draft.description} onChange={event => setDraft({ ...draft, description: event.target.value })} placeholder="Detalhes do compromisso…" /></Field></div><label className="flex items-center gap-2 text-sm text-[#66766b]"><input type="checkbox" className="h-4 w-4 accent-[#527653]" checked={draft.allDay} onChange={event => setDraft({ ...draft, allDay: event.target.checked })} />Evento de dia inteiro</label><div className="flex gap-2 md:col-span-2"><Button type="submit" busy={busy}>{editing ? 'Salvar alterações' : 'Criar compromisso'}</Button><Button type="button" variant="secondary" onClick={cancel}>Cancelar</Button></div></form>
     </Card>}
     <Card className="!p-4 sm:!p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eaf0e7] text-[#648063]"><CalendarDays size={18} /></span><div><h2 className="font-semibold capitalize text-[#30483a]">{headerLabel}</h2><p className="text-[11px] text-[#96a198]">{events.length} compromisso(s) neste período</p></div></div><div className="flex items-center gap-1"><Button variant="ghost" className="!px-2.5" aria-label="Período anterior" onClick={() => shift(-1)}><ChevronLeft size={17} /></Button><Button variant="secondary" className="!px-3" onClick={() => setCursor(new Date())}>Hoje</Button><Button variant="ghost" className="!px-2.5" aria-label="Próximo período" onClick={() => shift(1)}><ChevronRight size={17} /></Button><div className="ml-2 flex rounded-xl bg-[#eff2ed] p-1"><button onClick={() => setView('month')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${view === 'month' ? 'bg-white text-[#3d5845] shadow-sm' : 'text-[#819087]'}`}>Mês</button><button onClick={() => setView('week')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${view === 'week' ? 'bg-white text-[#3d5845] shadow-sm' : 'text-[#819087]'}`}>Semana</button></div></div></div>

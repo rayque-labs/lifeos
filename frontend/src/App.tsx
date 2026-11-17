@@ -1,8 +1,10 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useCallback, useState } from 'react'
+import { MonolithSplash } from './components/MonolithSplash'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/auth'
 import { AppLayout } from './components/AppLayout'
 import { LoadingState } from './components/ui'
+const AssistantChatPage = lazy(() => import('./pages/AssistantChatPage').then((module) => ({ default: module.AssistantChatPage })))
 const AuthPage = lazy(() => import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })))
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
 const TasksPage = lazy(() => import('./pages/TasksPage').then((module) => ({ default: module.TasksPage })))
@@ -28,6 +30,7 @@ function Router() {
     <Route path="/reset-password" element={<AuthPage mode="reset" />} />
     <Route path="/" element={<Protected><AppLayout /></Protected>}>
       <Route index element={<DashboardPage />} />
+      <Route path="assistant" element={<AssistantChatPage />} />
       <Route path="tasks" element={<TasksPage />} />
       <Route path="projects" element={<ProjectsPage />} />
       <Route path="habits" element={<HabitsPage />} />
@@ -41,5 +44,13 @@ function Router() {
 }
 
 export default function App() {
-  return <BrowserRouter><AuthProvider><Router /></AuthProvider></BrowserRouter>
+  // Play on every cold start. The splash is a real part of the LifeOS identity.
+  const [intro, setIntro] = useState(true)
+  const finishIntro = useCallback(() => {
+    setIntro(false)
+  }, [])
+  return <BrowserRouter><AuthProvider>
+    <Router />
+    {intro && <MonolithSplash onComplete={finishIntro} />}
+  </AuthProvider></BrowserRouter>
 }

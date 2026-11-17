@@ -12,30 +12,42 @@ type AuthValue = {
 const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const offline = import.meta.env.VITE_OFFLINE_MODE === 'true'
+  const localUser = (): User => {
+    try {
+      const value = JSON.parse(localStorage.getItem('lifeos:offline:v1:profile') || 'null') as User | null
+      if (value && typeof value.full_name === 'string') return value
+    } catch { /* use local default */ }
+    return { id: 1, email: 'local@lifeos.invalid', full_name: 'Meu LifeOS' }
+  }
+  const [user, setUser] = useState<User | null>(offline ? localUser() : null)
+  const [loading, setLoading] = useState(!offline)
 
   const clear = () => { tokenStore.clear(); setUser(null); setLoading(false) }
-  const refreshUser = async () => setUser(await get<User>('/auth/me'))
+  const refreshUser = async () => { if (offline) { setUser(localUser()); return }; setUser(await get<User>('/auth/me')) }
 
   useEffect(() => {
     const onUnauthorized = () => clear()
     window.addEventListener('lifeos:unauthorized', onUnauthorized)
+    if (offline) return () => window.removeEventListener('lifeos:unauthorized', onUnauthorized)
     if (!tokenStore.get()) setLoading(false)
     else get<User>('/auth/me').then(setUser).catch(clear).finally(() => setLoading(false))
     return () => window.removeEventListener('lifeos:unauthorized', onUnauthorized)
   }, [])
 
   const login = async (email: string, password: string) => {
+    if (offline) { setUser(localUser); return }
     const result = await post<{ access_token: string }>('/auth/login', { email, password })
     tokenStore.set(result.access_token)
     await refreshUser()
   }
   const register = async (email: string, fullName: string, password: string) => {
+    if (offline) { setUser(localUser); return }
     await post<User>('/auth/register', { email, full_name: fullName, password })
     await login(email, password)
   }
   const logout = async () => {
+    if (offline) { setUser(localUser); return }
     try { await post<void>('/auth/logout', {}) } finally { clear() }
   }
 

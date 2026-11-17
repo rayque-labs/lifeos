@@ -1,3 +1,7 @@
+import { initializeOfflineStorage, persistOfflineStorage } from './native-store'
+import { offlineRequest } from './offline'
+import { synchronizeEventNotifications } from './event-notifications'
+import type { CalendarEvent } from './types'
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 const TOKEN_KEY = 'lifeos.access-token.v1'
 
@@ -17,6 +21,24 @@ export const tokenStore = {
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  if (import.meta.env.VITE_OFFLINE_MODE === 'true') {
+    const method = (options.method || 'GET').toUpperCase()
+    const body = typeof options.body === 'string' ? JSON.parse(options.body) : undefined
+    await initializeOfflineStorage()
+    const result = offlineRequest<T>(path, method, body)
+    if (method !== 'GET') {
+      await persistOfflineStorage()
+      const eventPath = path.split('?')[0].split('/').filter(Boolean)
+      if (eventPath[0] === 'calendar' && eventPath[1] === 'events' && eventPath.length <= 3) {
+        if (method === 'DELETE' && eventPath.length === 3) {
+          await synchronizeEventNotifications(null, Number(eventPath[2]))
+        } else if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
+          await synchronizeEventNotifications(result as CalendarEvent)
+        }
+      }
+    }
+    return result
+  }
   const headers = new Headers(options.headers)
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json')
   const token = tokenStore.get()

@@ -1,3 +1,4 @@
+import { SectionBanner } from '../components/Personalization'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Bookmark, FileText, Pencil, Pin, PinOff, Plus, Search, Tag, Trash2, X } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, ErrorMessage, Field, Input, LoadingState, PageHeading, Textarea } from '../components/ui'
@@ -43,6 +44,7 @@ export function NotesPage() {
   }
 
   return <>
+    <SectionBanner section="notes" />
     <PageHeading title="Notas" description="Ideias, referências e lembretes em um espaço pesquisável." action={<Button onClick={() => { setDraft(blank); setEditing(null); setFormOpen(true) }}><Plus size={16} />Nova nota</Button>} />
     {error && <div className="mb-4"><ErrorMessage message={error} /></div>}
     {formOpen && <Card className="mb-5 !border-[#dce7d8]"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-semibold text-[#30483a]">{editing ? 'Editar nota' : 'Nova nota'}</h2><p className="mt-1 text-xs text-[#859187]">Suas notas são visíveis apenas na sua conta.</p></div><button aria-label="Fechar" onClick={cancel} className="rounded-lg p-1.5 text-[#859187] hover:bg-[#f0f3ee]"><X size={18} /></button></div>

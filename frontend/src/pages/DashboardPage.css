@@ -1,0 +1,42 @@
+.monolith-home { max-width: 900px; margin-inline: auto; }
+.home-greeting { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin: 0 0 6px; }
+.home-greeting h1 { font-size: clamp(1.35rem, 5.4vw, 2.15rem); line-height: 1.15; font-weight: 700; overflow-wrap: anywhere; }
+.home-greeting time { color: #c9cbc5; font-size: .79rem; text-align: right; white-space: nowrap; padding-top: 4px; }
+.home-greeting time::after { content: ""; width: 25px; height: 2px; border-radius: 2px; background: var(--mono-accent); display: block; margin: 7px 0 0 auto; }
+.monolith-home .mono-banner-wrap--compact { margin-bottom: 10px; }
+.monolith-home .mono-banner-wrap--compact .mono-banner { min-height: clamp(110px, 31vw, 220px); padding: 0; border: 0; border-radius: 0; background-color: transparent; }
+.monolith-home .mono-banner--dashboard { background-image: linear-gradient(180deg, #101010 0%, transparent 26%, transparent 68%, #101010 100%), url('/monolith-mountains.webp'); }
+.monolith-home .mono-banner--dashboard::before, .monolith-home .mono-banner--dashboard .mono-banner__art { display: none; }
+.monolith-home .mono-banner__edit { top: auto; bottom: 9px; right: 3px; border: 0; background: #151515bb; padding: 8px; font-size: 0; gap: 0; }
+.home-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+.home-shortcuts a, .home-panel, .home-focus { border: 1px solid #37393c; border-radius: 15px; background: linear-gradient(155deg, #292a2c, #171819 83%); box-shadow: inset 0 1px #ffffff08; }
+.home-shortcuts a { min-width: 0; min-height: 74px; padding: 9px 2px; display: grid; place-items: center; align-content: center; gap: 6px; font-size: .74rem; font-weight: 600; }
+.home-shortcuts svg, .home-panel-title svg:first-child, .home-focus svg:first-child { color: var(--mono-accent); flex: none; }
+.home-panels { display: grid; grid-template-columns: minmax(0, 1.14fr) minmax(0, 1fr); gap: 10px; }
+.home-panel { padding: 12px 10px; min-width: 0; }
+.home-panel-title { display: flex; align-items: center; gap: 6px; min-height: 29px; margin-bottom: 7px; }
+.home-panel-title h2 { flex: 1; min-width: 0; font-size: clamp(.78rem, 3.5vw, 1rem); font-weight: 650; }
+.home-panel-title svg:last-child { color: #c9cbc5; flex: none; }
+.home-task-list, .home-event-list { display: grid; gap: 8px; font-size: .76rem; }
+.home-task-list li, .home-event-list li { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.home-task-list svg { flex: none; color: var(--mono-accent); }
+.home-task-list .is-done { color: #a7a9a1; text-decoration: line-through; }
+.home-task-box { width: 15px; height: 15px; border: 1.5px solid #a7a9a1; border-radius: 4px; flex: none; }
+.home-list-name { min-width: 0; overflow-wrap: anywhere; }
+.home-muted { color: #c2c3bd; font-size: .77rem; margin-bottom: 7px; }
+.home-event-list li { border-top: 1px solid #38393a; padding-top: 6px; }
+.home-event-list time { color: var(--mono-accent); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.home-habit-ring { padding: 8px; display: grid; width: min(100%, 105px); aspect-ratio: 1; margin: 4px auto; border-radius: 50%; }
+.home-habit-ring div { display: grid; place-content: center; text-align: center; border-radius: 50%; background: #1a1b1b; }
+.home-habit-ring strong { font-weight: 700; font-size: 1.35rem; line-height: 1.1; }
+.home-habit-ring span { font-size: .62rem; color: #c2c3bd; }
+.home-balance { font-size: clamp(.97rem, 4.15vw, 1.55rem); font-weight: 650; overflow-wrap: anywhere; }
+.home-focus { display: flex; align-items: center; gap: 10px; margin-block: 12px; padding: 13px; background: radial-gradient(ellipse at 100% 100%, #a8eb412d, transparent 70%), linear-gradient(145deg, #292a2c, #171819); }
+.home-focus span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.home-focus strong, .home-focus small { display: block; }
+.home-focus small { color: #c2c3bd; margin-top: 3px; }
+@media (min-width: 768px) {
+  .home-panel { padding: 17px; }
+  .home-shortcuts, .home-panels { gap: 14px; }
+  .home-task-list, .home-event-list, .home-muted, .home-shortcuts a { font-size: .875rem; }
+}

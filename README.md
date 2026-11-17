@@ -106,6 +106,25 @@ A configuração inicial proposta para Render está em [`render.yaml`](render.ya
 - SMTP precisa de configuração e teste real para recuperação de senha.
 - Não há deploy de produção realizado.
 
+## Sua própria IA (BYOK — Bring Your Own Key)
+
+O LifeOS foi pensado para que **cada usuário escolha seu provedor e use sua própria cota de API**, sem depender de uma assinatura do LifeOS para conversar. Os recursos de agenda e organização não exigem IA.
+
+### Como escolher a API
+
+1. Compare modelos e cotas no painel oficial de Gemini, Groq ou OpenRouter. As condições de gratuidade e limites mudam; confira antes de usar.
+2. Crie sua própria chave de API no provedor escolhido. **Nunca publique a chave em prints, GitHub, mensagens ou arquivos compartilhados.**
+3. Para testar a compatibilidade OpenAI, use o script `agent-server/test_provider.py` e variáveis de ambiente `LIFEOS_LLM_BASE_URL`, `LIFEOS_LLM_MODEL` e `LIFEOS_LLM_API_KEY`. Veja [o guia de testes](docs/AI_API_FREE_TIER.md).
+4. Comece com um modelo rápido e econômico; prefira contexto curto, memória resumida e chamadas apenas quando necessário. Verifique políticas de privacidade antes de enviar conteúdo sensível.
+
+**Estado atual:** o teste de API existe, mas a tela de conexão BYOK e o chat integrado ao APK **ainda não estão prontos**. O usuário não deve inserir chaves em campos genéricos do aplicativo. A integração final precisará de armazenamento seguro de credenciais no Android e conexão direta segura ou gateway por usuário, sem publicar chaves no APK ou em logs. Uma API individual não elimina os limites impostos pelo provedor.
+
+### Personalizar a voz do agente
+
+Em **Configurações → Voz do agente**, é possível escolher uma voz de síntese disponível no aparelho e ouvir um teste. Também é possível carregar um áudio de referência para **reprodução local temporária**. Esse áudio não é enviado a um serviço nem transforma a voz em sintetizador.
+
+**Clonagem de voz ainda não foi implementada.** Para gerar frases inéditas com uma voz clonada, precisaremos integrar um motor compatível e exigir consentimento explícito da pessoa cuja voz será utilizada. Não use gravações de terceiros, dubladores ou personagens sem autorização.
+
 ## Licença
 
 Consulte [`LICENSE`](LICENSE).

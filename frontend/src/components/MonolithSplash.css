@@ -1,0 +1,97 @@
+.monolith-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  color: #f1f1ed;
+  background: #000;
+  animation: monolith-exit 2.65s ease-in-out both;
+}
+.monolith-splash__center {
+  display: grid;
+  justify-items: center;
+  gap: clamp(14px, 3.5vh, 24px);
+}
+.monolith-splash__mark {
+  position: relative;
+  isolation: isolate;
+  width: min(73vw, 42vh, 340px);
+  aspect-ratio: 1;
+  animation: monolith-mark 900ms cubic-bezier(.2,.72,.21,1) both;
+}
+.monolith-splash__mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.monolith-splash__mark::after {
+  content: "";
+  position: absolute;
+  inset: 4% 5% 7%;
+  border-radius: 29%;
+  pointer-events: none;
+  background: linear-gradient(116deg, transparent 42%, #e3ffbe00 45%, #e3ffbe45 50%, #d5ff7f25 53%, transparent 60%) 160% 0 / 260% 100% no-repeat;
+  mix-blend-mode: screen;
+  animation: monolith-sweep 1.14s 570ms cubic-bezier(.32,.08,.48,1) both;
+}
+.monolith-splash__name {
+  text-align: center;
+  font: 750 clamp(28px, 8vw, 46px)/1 system-ui, sans-serif;
+  letter-spacing: -.045em;
+  animation: monolith-name 520ms 260ms cubic-bezier(.2,.72,.21,1) both;
+}
+.monolith-splash__name span { color: #c5ff4a; }
+.monolith-splash__tag {
+  margin: 10px 0 0;
+  text-align: center;
+  color: #d1d7c7;
+  font: 600 clamp(9px, 2.8vw, 12px)/1.4 system-ui, sans-serif;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  animation: monolith-name 480ms 680ms ease-out both;
+}
+.monolith-splash__line {
+  position: absolute;
+  bottom: max(5vh, calc(12vh + env(safe-area-inset-bottom, 0px)));
+  width: min(43vw, 190px);
+  height: 2px;
+  border-radius: 100vmax;
+  background: #27331b;
+}
+.monolith-splash__line span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #c5ff4a;
+  box-shadow: 0 0 9px #c5ff4a85;
+  transform-origin: left;
+  animation: monolith-line 2.12s 160ms cubic-bezier(.35,.08,.3,1) both;
+}
+@keyframes monolith-sweep {
+  from { background-position: 160% 0; }
+  to { background-position: -60% 0; }
+}
+@keyframes monolith-line {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes monolith-mark {
+  from { opacity: 0; transform: scale(.9); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes monolith-name {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes monolith-exit {
+  0%, 84% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .monolith-splash, .monolith-splash__mark, .monolith-splash__name, .monolith-splash__tag, .monolith-splash__line span { animation: none; }
+  .monolith-splash__mark::after { content: none; }
+}

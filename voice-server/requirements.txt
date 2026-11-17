@@ -1,0 +1,6 @@
+# XTTS-v2/Coqui TTS has Python and Torch version constraints.
+# Recommended: Python 3.10 with compatible PyTorch installed first.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+python-multipart>=0.0.9
+TTS==0.22.0
