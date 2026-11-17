@@ -61,6 +61,8 @@ jobs:
         env:
           VITE_OFFLINE_MODE: 'true'
         run: npm run build
+      - name: Test compiled voice session worker
+        run: node --experimental-strip-types tests/voice-session.integration.mjs
       - name: Generate Android project
         run: |
           python - <<'PY'

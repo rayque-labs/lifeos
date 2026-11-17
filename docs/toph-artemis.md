@@ -83,7 +83,7 @@ versão conectada ao servidor pede abrir chat autenticado.
 Testes automatizados de armazenamento reaberto, isolamento por conta, duas
 janelas gravando, limpeza versus resposta atrasada, limite de retenção e contexto
 sem resultados privados; adaptadores web com respostas simuladas verificam
-parâmetros, metadados, URLs e erros. Nenhuma chave real foi usada em testes.
+parâmetros, metadados, URLs e erros. O bundle offline do motor de voz também é executado com APIs simuladas: persistência após recriação, contexto, memória, encaminhamento ao painel sem mutação e erro de credencial. Nenhuma chave real foi usada em testes.
 Build TypeScript/Vite e workflow Android devem passar antes de publicar APK.
 
 Teste manual pendente no telefone: conversar, recolher, reabrir, perguntar sobre
