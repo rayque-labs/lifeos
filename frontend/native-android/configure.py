@@ -74,6 +74,17 @@ for package in ("com.whatsapp", "com.whatsapp.w4b", "com.android.chrome", "com.i
     update_element(queries, "package", package)
 
 ET.indent(tree, space="    ")
+network_config = root / "res/xml/lifeos_network_security.xml"
+network_config.parent.mkdir(parents=True, exist_ok=True)
+network_config.write_text("""<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
+""", encoding="utf-8")
+app.set(f"{{{ANDROID}}}networkSecurityConfig", "@xml/lifeos_network_security")
 tree.write(manifest, encoding="utf-8", xml_declaration=True)
 
 package_path = root / "java/com/rayquelabs/lifeos"

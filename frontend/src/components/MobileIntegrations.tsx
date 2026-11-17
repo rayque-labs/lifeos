@@ -45,7 +45,7 @@ function Integration({ account, kind }: { account: string; kind: 'whatsapp' | 'o
     <p className="text-sm opacity-75">{isWhatsApp ? 'Use sua instância Baileys da Evolution API v2 para parear pelo número.' :
       'Consulte saldos e lançamentos das contas autorizadas no seu servidor LifeOS.'}</p>
     <Field label={isWhatsApp ? 'URL da Evolution API' : 'URL do servidor financeiro'}>
-      <Input value={config.url} type="url" disabled={disabled} placeholder="https://…" onChange={e => { setCode(''); setChats([]); setSnapshot(null); setConfig({ ...config, url: e.target.value }) }} />
+      <Input value={config.url} type="url" disabled={disabled} placeholder={isAndroid && kind === 'whatsapp' ? 'http://127.0.0.1:8080' : 'https://…'} onChange={e => { setCode(''); setChats([]); setSnapshot(null); setConfig({ ...config, url: e.target.value }) }} />
     </Field>
     <Field label={isWhatsApp ? 'Chave da Evolution' : 'Token de leitura'}>
       <Input type="password" autoComplete="off" value={config.token} disabled={disabled} onChange={e => { setCode(''); setChats([]); setSnapshot(null); setConfig({ ...config, token: e.target.value }) }} />

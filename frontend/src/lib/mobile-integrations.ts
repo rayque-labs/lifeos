@@ -1,3 +1,4 @@
+import { CapacitorHttp } from '@capacitor/core'
 import { deleteEncrypted, loadEncrypted, saveEncrypted } from './ai-credentials'
 import { isAndroid, nativeAssistant } from './native-assistant'
 
@@ -26,25 +27,42 @@ export async function storeConnection(kind: ConnectionKind, user: string, config
   return normalized
 }
 
+function isLocalAndroidHttp(url: URL) {
+  return isAndroid && url.protocol === 'http:' && url.hostname === '127.0.0.1' && !url.username && !url.password
+}
+
 function normalizeConnection(config: Connection, instanceRequired: boolean): Connection {
   let url: URL
-  try { url = new URL(config.url.trim()) } catch { throw new Error('Informe um endereço HTTPS válido.') }
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
-    throw new Error('Informe a URL base HTTPS do seu servidor.')
+  try { url = new URL(config.url.trim()) } catch { throw new Error('Informe um endereço válido para o servidor.') }
+  if ((url.protocol !== 'https:' && !isLocalAndroidHttp(url)) || url.username || url.password || url.search || url.hash) {
+    throw new Error('Use HTTPS para servidores externos ou HTTP em 127.0.0.1 no Android.')
   }
   if (!config.token.trim()) throw new Error('Informe a chave ou token do servidor.')
   if (instanceRequired && !config.instance?.trim()) throw new Error('Informe a instância existente da Evolution.')
   return { url: url.href.replace(/\/+$/, ''), token: config.token.trim(), instance: config.instance?.trim() }
 }
 
+function assertIntegrationStatus(status: number) {
+  if (status === 401 || status === 403) throw new Error('Chave inválida ou acesso não autorizado pelo servidor.')
+  if (status === 404) throw new Error('Rota ou instância não encontrada no servidor.')
+  if (status < 200 || status >= 300) throw new Error(`O servidor retornou um erro (${status}).`)
+}
+
 async function getJson<T>(url: string, headers: Record<string, string>, body?: object): Promise<T> {
+  if (isLocalAndroidHttp(new URL(url))) {
+    const response = await CapacitorHttp.request({
+      url, headers, method: body ? 'POST' : 'GET', data: body,
+      disableRedirects: true, connectTimeout: 5000, readTimeout: 30000, responseType: 'json',
+    }).catch(() => { throw new Error('Não foi possível acessar o servidor local. Confira se ele está rodando no Termux.') })
+    assertIntegrationStatus(response.status)
+    return response.data as T
+  }
+
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), 30_000)
   try {
     const response = await fetch(url, { headers, method: body ? 'POST' : 'GET', body: body ? JSON.stringify(body) : undefined, signal: controller.signal, redirect: 'error', cache: 'no-store' })
-    if (response.status === 401 || response.status === 403) throw new Error('Chave inválida ou acesso não autorizado pelo servidor.')
-    if (response.status === 404) throw new Error('Rota ou instância não encontrada no servidor.')
-    if (!response.ok) throw new Error(`O servidor retornou um erro (${response.status}).`)
+    assertIntegrationStatus(response.status)
     return await response.json() as T
   } catch (error) {
     if (error instanceof TypeError || controller.signal.aborted) {
