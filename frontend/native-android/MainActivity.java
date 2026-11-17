@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         if (!(this instanceof AssistantConversationActivity)) SplashScreen.installSplashScreen(this);
         registerPlugin(LifeOSAssistant.class);
+        registerPlugin(TophFiles.class);
         super.onCreate(savedInstanceState);
     }
 

@@ -49,6 +49,12 @@ jobs:
           }
           console.log('Frontend preflight OK');
           JS
+      - name: Test executor validation and file classification
+        run: |
+          node --experimental-strip-types --test tests/*.test.mjs
+          mkdir -p /tmp/lifeos-file-tests
+          javac -d /tmp/lifeos-file-tests native-android/FileRules.java native-android/tests/FileRulesTest.java
+          java -cp /tmp/lifeos-file-tests com.rayquelabs.lifeos.FileRulesTest
       - name: Build offline web app
         env:
           VITE_OFFLINE_MODE: 'true'
@@ -130,6 +136,7 @@ jobs:
           apk=android/app/build/outputs/apk/debug/app-debug.apk
           test -s "$apk"
           unzip -tq "$apk"
+          sha256sum "$apk" > android/app/build/outputs/apk/debug/app-debug.apk.sha256
           build_tools="$ANDROID_HOME/build-tools/35.0.0"
           "$build_tools/apksigner" verify --verbose "$apk"
           "$build_tools/aapt" dump badging "$apk" | grep "^package: name='com.rayquelabs.lifeos'"
@@ -153,5 +160,7 @@ jobs:
         if: success()
         with:
           name: lifeos-diagnostic-minimal-apk
-          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            frontend/android/app/build/outputs/apk/debug/app-debug.apk
+            frontend/android/app/build/outputs/apk/debug/app-debug.apk.sha256
           if-no-files-found: error

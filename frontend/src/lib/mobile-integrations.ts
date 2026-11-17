@@ -142,3 +142,15 @@ export async function bankSnapshot(config: Connection) {
   if (!Array.isArray(data.accounts) || !Array.isArray(data.transactions)) throw new Error('Resposta bancária inválida.')
   return data
 }
+
+export async function sendWhatsAppMessage(config: Connection, phone: string, text: string) {
+  const connection = normalizeConnection(config, true)
+  const number = phoneDigits(phone)
+  if (!text.trim() || text.length > 4000) throw new Error('A mensagem deve ter de 1 a 4000 caracteres.')
+  const result = await getJson<{ key?: { id?: string; remoteJid?: string }; status?: string }>(
+    `${connection.url}/message/sendText/${encodeURIComponent(connection.instance!)}`,
+    { apikey: connection.token, 'Content-Type': 'application/json' }, { number, text },
+  )
+  if (!result.key?.id) throw new Error('O servidor não retornou o identificador. O envio pode ter ocorrido: confira a conversa antes de tentar novamente.')
+  return `A Evolution aceitou a mensagem. Identificador: ${result.key.id}. Isso ainda não confirma entrega ou leitura pelo destinatário.`
+}

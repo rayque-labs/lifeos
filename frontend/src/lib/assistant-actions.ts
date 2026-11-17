@@ -1,10 +1,11 @@
+import { parseFileAction, type FileAction } from './file-actions'
 import { get, post } from './api'
 import { isAndroid, nativeAssistant } from './native-assistant'
 import { bankSnapshot, loadConnection } from './mobile-integrations'
 import type { Task } from './types'
 
 type DeviceControl = Parameters<typeof nativeAssistant.controlDevice>[0]
-export type AssistantAction = { kind: 'create-task'; title: string } | { kind: 'list-tasks' } | { kind: 'device'; control: DeviceControl } | { kind: 'bank-balances' } | { kind: 'screen' }
+export type AssistantAction = FileAction | { kind: 'whatsapp-send'; phone: string; text: string } | { kind: 'create-task'; title: string } | { kind: 'list-tasks' } | { kind: 'device'; control: DeviceControl } | { kind: 'bank-balances' } | { kind: 'screen' }
 const controlledApps = 'whatsapp|chrome|agenda|calculadora|keep|instagram'
 const apps = `${controlledApps}|facebook`
 const openApp = new RegExp(`^abr(?:ir|a|e) (?:o |a )?(?:aplicativo (?:do |da )?)?(${apps})[.!?]?$`, 'i')
@@ -16,6 +17,9 @@ export const taskChangedEvent = 'lifeos:tasks-changed'
 
 export function parseAssistantAction(input: string): AssistantAction | null {
   const spoken = input.trim().replace(/^(?:(?:ei|oi)\s+)?toph[,\s]+/i, '').replace(/^(?:voc[eê] )?(?:pode|consegue)\s+/i, '').replace(/(?:,? por favor| pra mim| para mim)[.!?]?$/i, '').trim()
+  const file = parseFileAction(spoken)
+  if (file) return file
+  input = spoken
   const create = input.match(/^(?:criar?|adicionar?)\s+(?:uma\s+)?tarefa(?:\s*:\s*|\s+)(.+)$/i)
   if (create) return { kind: 'create-task', title: create[1].trim() }
   if (/^(?:listar?|mostrar?)\s+(?:(?:as|minhas)\s+)?tarefas[.!?]?$/i.test(input)) return { kind: 'list-tasks' }
@@ -40,6 +44,7 @@ export function parseAssistantAction(input: string): AssistantAction | null {
 }
 
 export async function executeAssistantAction(action: AssistantAction, user?: string) {
+  if (action.kind === 'files' || action.kind === 'whatsapp-send') throw new Error('Esta ação precisa passar pelo executor com prévia.')
   if (action.kind === 'screen') {
     if (!isAndroid) throw new Error('A leitura da tela está disponível no app Android.')
     return (await nativeAssistant.inspectScreen()).summary
@@ -65,6 +70,8 @@ export async function executeAssistantAction(action: AssistantAction, user?: str
   if (action.kind === 'create-task') {
     if (!action.title || action.title.length > 150) throw new Error('Use um título de até 150 caracteres.')
     const saved = await post<Task>('/tasks/', { title: action.title })
+    const verified = await get<Task>(`/tasks/${saved.id}`)
+    if (verified.title !== action.title) throw new Error('A tarefa foi criada, mas a conferência retornou outro título. Confira a lista antes de repetir.')
     if (isAndroid) await nativeAssistant.markOverlayDataChanged().catch(() => {})
     window.dispatchEvent(new Event(taskChangedEvent))
     return `Criei a tarefa “${saved.title}”.`

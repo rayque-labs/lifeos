@@ -7,6 +7,9 @@ import { speakVoice, stopVoice } from '../lib/agent-voice'
 import { isAndroid, nativeAssistant } from '../lib/native-assistant'
 import { executeMemoryCommand, loadMemoryContext, parseMemoryCommand } from '../lib/toph-memory'
 import { useAuth } from '../lib/auth'
+import { nativeFiles, type FilePlan } from '../lib/file-actions'
+import { EXECUTOR_PROMPT, validateDecision, type PlannedAction } from '../lib/execution-schema'
+import { loadConnection, sendWhatsAppMessage } from '../lib/mobile-integrations'
 import { executeAssistantAction, parseAssistantAction } from '../lib/assistant-actions'
 import { Mic, MicOff, Send, Volume2, VolumeX, Trash2 } from 'lucide-react'
 
@@ -14,7 +17,8 @@ type Message = { role: 'user' | 'model'; text: string; local?: boolean; private?
 type RecognitionResult = { results: ArrayLike<ArrayLike<{ transcript: string }>> }
 type Recognition = { lang: string; continuous: boolean; interimResults: boolean; onresult: ((event: RecognitionResult) => void) | null; onerror: (() => void) | null; onend: (() => void) | null; start: () => void; stop: () => void }
 type SpeechWindow = Window & { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }
-const INTRO: Message = { role: 'model', text: 'Experimente “Criar tarefa: estudar Clojure” ou “Listar tarefas”.' }
+type PendingExecution = { action: PlannedAction; files?: FilePlan; account: string }
+const INTRO: Message = { role: 'model', text: 'Peça para criar tarefas, listar arquivos, criar uma pasta ou organizar documentos. Toque em Arquivos para autorizar uma pasta. Mudanças terão uma prévia para você confirmar.' }
 
 export function AssistantChatPage({ floating = false }: { floating?: boolean }) {
   const { user } = useAuth()
@@ -31,6 +35,9 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
   const [endpoint, setEndpoint] = useState(AI_PROVIDERS.gemini.endpoint)
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState('')
+  const [pending, setPending] = useState<PendingExecution | null>(null)
+  const [fileRunning, setFileRunning] = useState(false)
+  const executionLock = useRef(false)
   const [listening, setListening] = useState(false)
   const [voiceMode, setVoiceMode] = useState(floating)
   const [error, setError] = useState('')
@@ -53,6 +60,73 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     window.addEventListener('lifeos-ai-config-changed', refresh)
     return () => { active = false; window.removeEventListener('lifeos-ai-config-changed', refresh) }
   }, [])
+  useEffect(() => {
+    if (!isAndroid) return
+    let disposed = false
+    const handle = nativeFiles.addListener('progress', event => {
+      if (!disposed) setBusy(`Arquivos verificados: ${event.completed}/${event.total} · ${event.current}`)
+    })
+    return () => { disposed = true; void handle.then(h => h.remove()).catch(() => {}); void nativeFiles.cancel().catch(() => {}) }
+  }, [])
+  useEffect(() => { setPending(null) }, [user?.email])
+  const pauseFloatingMic = () => {
+    if (!floating || !isAndroid || !voiceSessionActive.current) return
+    voiceSessionActive.current = false
+    setListening(false)
+    setVoicePaused(true)
+    void nativeAssistant.stopListening().catch(() => {})
+  }
+  const addResult = (text: string) => setMessages(prev => [...prev, { role: 'model', text, local: true, private: true }])
+  const chooseFolder = async (forget = false) => {
+    if (request.current || executionLock.current) return
+    pauseFloatingMic(); setError(''); setPending(null); executionLock.current = true; setBusy('Aguardando acesso à pasta…')
+    try { addResult((await (forget ? nativeFiles.forgetFolder() : nativeFiles.chooseFolder())).summary) }
+    catch (e) { setError(e instanceof Error ? e.message : 'Não consegui selecionar a pasta.') }
+    finally { executionLock.current = false; setBusy('') }
+  }
+  const discardPlan = () => {
+    setPending(null)
+    if (isAndroid) void nativeFiles.discard().catch(() => {})
+    addResult('Plano descartado. Nenhuma mudança foi executada.')
+  }
+  const confirmPlan = async () => {
+    if (!pending || executionLock.current || request.current || pending.account !== user?.email) return
+    executionLock.current = true
+    const plan = pending; setPending(null); setError(''); pauseFloatingMic(); setBusy('Executando plano confirmado…')
+    try {
+      if (plan.files) {
+        setFileRunning(true)
+        const result = await nativeFiles.execute({ token: plan.files.token })
+        const heading = result.error ? 'Execução interrompida.' : result.cancelled ? 'Execução cancelada entre etapas.' : 'Execução concluída.'
+        addResult([heading, `${result.completed.length}/${result.total} etapas verificadas.`, ...result.completed, result.error || '', result.cancelled ? 'As etapas já concluídas foram mantidas.' : ''].filter(Boolean).join('\n'))
+      } else if (plan.action.kind === 'whatsapp-send') {
+        const connection = await loadConnection('whatsapp', plan.account)
+        if (!connection) throw new Error('Configure a conexão WhatsApp em Configurações → Integrações.')
+        addResult(await sendWhatsAppMessage(connection, plan.action.phone, plan.action.text))
+      } else addResult(await executeAssistantAction(plan.action, plan.account))
+    } catch (e) { setError(e instanceof Error ? e.message : 'Não consegui concluir a execução.') }
+    finally { executionLock.current = false; setFileRunning(false); setBusy('') }
+  }
+  const prepareAction = async (action: PlannedAction, signal: AbortSignal) => {
+    if (action.kind === 'files') {
+      if (!isAndroid) throw new Error('A organização de arquivos está disponível no APK Android.')
+      if (action.operation === 'list') {
+        const result = await nativeFiles.listFiles({ query: action.query })
+        return [`Pasta: ${result.folder}`, ...result.items.map(item => `${item.directory ? 'Pasta' : 'Arquivo'}: ${item.name}${item.size >= 0 && !item.directory ? ` (${item.size} bytes)` : ''}`), result.items.length ? '' : 'Nenhum item encontrado.'].filter(Boolean).join('\n')
+      }
+      const files = await nativeFiles.prepare(action)
+      if (signal.aborted) { await nativeFiles.discard(); return 'Plano cancelado.' }
+      pauseFloatingMic()
+      setPending({ action, files, account: user!.email })
+      return 'Preparei a prévia. Confira as mudanças abaixo e toque em Confirmar. Nenhum arquivo foi alterado ainda.'
+    }
+    if (action.kind === 'create-task' || action.kind === 'whatsapp-send') {
+      pauseFloatingMic()
+      setPending({ action, account: user!.email })
+      return 'Confira o pedido abaixo e toque em Confirmar para executar.'
+    }
+    return executeAssistantAction(action, user?.email)
+  }
   const save = async () => {
     try {
       await saveAIConfig({ provider, apiKey: key, model, endpoint })
@@ -81,7 +155,9 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
   }
   const send = async (override?: string) => {
     const text = (override ?? draft).trim()
-    if (!text || request.current || !loaded) return
+    if (!text || request.current || executionLock.current || !loaded) return
+    if (pending) { setError('Confirme ou descarte o plano atual antes de fazer outro pedido.'); return }
+    if (!user) { setError('Entre na sua conta para usar a Toph.'); return }
     const memory = parseMemoryCommand(text)
     if (memory && !user) {
       setError('Entre na sua conta para usar a memória da Toph.')
@@ -109,13 +185,26 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     }, 800) : undefined
     try {
       const context = !local && user ? await loadMemoryContext(user.id, text).catch(() => []) : []
-      const answer = memory && user ? await executeMemoryCommand(memory, user.id)
-        : action ? await executeAssistantAction(action, user?.email)
-        : await generateAIReply({ provider, apiKey: key, model, endpoint }, history, controller.signal, context)
+      let answer: string
+      let toolUsed = !!action
+      if (memory && user) answer = await executeMemoryCommand(memory, user.id)
+      else if (action) {
+        answer = ['files', 'create-task', 'list-tasks', 'whatsapp-send'].includes(action.kind)
+          ? await prepareAction(action as PlannedAction, controller.signal) : await executeAssistantAction(action, user?.email)
+      } else {
+        const decision = validateDecision(await generateAIReply({ provider, apiKey: key, model, endpoint }, history, controller.signal, context, EXECUTOR_PROMPT))
+        if (controller.signal.aborted) return
+        window.clearTimeout(timeout)
+        toolUsed = !!decision.action
+        if (decision.action && !user) throw new Error('Entre na sua conta para executar tarefas.')
+        if (decision.action) setBusy('Preparando a execução…')
+        answer = decision.action ? await prepareAction(decision.action, controller.signal) : decision.reply
+      }
       if (controller.signal.aborted) return
-      const privateResult = memory?.kind === 'list' || action?.kind === 'bank-balances' || action?.kind === 'screen'
-      setMessages(prev => [...prev, { role: 'model', text: answer, local, private: privateResult }])
+      const privateResult = memory?.kind === 'list' || toolUsed
+      setMessages(prev => [...prev.map((m, i) => toolUsed && i === prev.length - 1 ? { ...m, local: true } : m), { role: 'model', text: answer, local: local || toolUsed, private: privateResult }])
       if (voiceEnabled.current && action?.kind === 'screen') await speak('Li o texto da tela. Abra o chat da Toph para conferir.', floating)
+      else if (voiceEnabled.current && toolUsed) await speak('Confira o resultado e a prévia no painel da Toph.', floating)
       else if (voiceEnabled.current && !privateResult) await speak(answer, floating)
     } catch (reason) {
       if (controller.signal.reason === 'timeout') setError('A IA demorou para responder.')
@@ -167,7 +256,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
           pause()
           return
         }
-        if (active) timer = window.setTimeout(() => void next(), 350)
+        if (active && voiceSessionActive.current) timer = window.setTimeout(() => void next(), 350)
       } catch (reason) {
         if (!active) return
         pause()
@@ -232,13 +321,6 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
       r.start(); setListening(true)
     } catch { setError('Não foi possível iniciar o microfone.'); setListening(false) }
   }
-  const pauseFloatingMic = () => {
-    if (!floating || !isAndroid || !voiceSessionActive.current) return
-    voiceSessionActive.current = false
-    setListening(false)
-    setVoicePaused(true)
-    void nativeAssistant.stopListening().catch(() => {})
-  }
   const togglePanelMic = () => {
     if (!floating || !isAndroid) { void toggleListening(); return }
     if (voiceSessionActive.current && !voicePaused) { pauseFloatingMic(); return }
@@ -269,10 +351,13 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     </details>}
     <div className="flex items-center justify-between gap-3"><button type="button" onClick={() => {voiceEnabled.current = !voiceEnabled.current; setVoiceMode(voiceEnabled.current); stopVoice()}} className="flex items-center gap-2 rounded-xl border border-[#45454a] px-3 py-2 text-sm">{voiceMode ? <Volume2 size={17}/> : <VolumeX size={17}/>} {floating ? (voiceMode ? 'Voz ligada' : 'Ligar voz') : (voiceMode ? 'Respostas faladas: ativadas' : 'Ativar respostas faladas')}</button><button type="button" aria-label="Limpar conversa" disabled={!!busy} onClick={() => {setMessages([INTRO]);setError('');stopVoice()}} className="flex items-center gap-2 text-sm text-[#a3a5a9]"><Trash2 size={16}/> {floating ? 'Limpar' : 'Limpar conversa'}</button></div>
     <div aria-live="polite" className="assistant-messages flex min-h-40 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-[#34363a] bg-[#151617] p-3">{messages.map((m,i) => <div key={i} className={m.role === 'user' ? 'assistant-user-message ml-auto max-w-[90%] rounded-2xl px-4 py-3' : 'mr-auto max-w-[90%] rounded-2xl bg-[#282a2c] px-4 py-3 text-[#F1F1ED]'}><p className="whitespace-pre-wrap text-sm">{m.text}</p>{m.role === 'model' && !m.private && <button type="button" aria-label="Ouvir resposta" className="mt-2 opacity-70" onClick={() => void speak(m.text)}><Volume2 size={15}/></button>}</div>)}{busy && <p className="text-sm text-[#a3a5a9]">{busy}</p>}<div ref={bottom}/></div>
+    {isAndroid && <div className="flex flex-wrap gap-2"><button type="button" disabled={!!busy || !!pending} onClick={() => void chooseFolder()} className="rounded-xl border border-[#45454a] px-3 py-2 text-sm disabled:opacity-40">Arquivos · escolher pasta</button><button type="button" disabled={!!busy || !!pending} onClick={() => void chooseFolder(true)} className="rounded-xl border border-[#45454a] px-3 py-2 text-sm disabled:opacity-40">Remover acesso</button></div>}
+    {pending && <section aria-label="Prévia da execução" className="rounded-xl border border-[#C5FF4A] bg-[#1d1e20] p-3"><p className="font-semibold">Revisar antes de executar</p><p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words text-sm">{pending.files ? [`Pasta: ${pending.files.folder}`, ...pending.files.steps].join('\n') : pending.action.kind === 'create-task' ? `Criar tarefa: ${pending.action.title}` : pending.action.kind === 'whatsapp-send' ? `Enviar WhatsApp para ${pending.action.phone}\n\n${pending.action.text}` : ''}</p><p className="my-2 text-xs text-[#a3a5a9]">Confira todos os itens. Cancelar durante a execução mantém as etapas já concluídas.</p><div className="flex gap-2"><button type="button" disabled={!!busy} onClick={() => void confirmPlan()} className="rounded-xl bg-[#C5FF4A] px-4 py-2 text-black">Confirmar</button><button type="button" disabled={!!busy} onClick={discardPlan} className="rounded-xl border border-[#45454a] px-4 py-2">Descartar</button></div></section>}
+    {!!busy && !pending && <button type="button" onClick={() => { if (fileRunning) { void nativeFiles.cancel(); setBusy('Cancelando após a etapa atual…') } else if (request.current) { request.current.abort(); setBusy('Cancelando…') } }} disabled={!fileRunning && busy === 'Executando plano confirmado…'} className="self-start rounded-xl border border-[#45454a] px-3 py-2 text-sm">Cancelar execução</button>}
     {error && <p role="alert" className="text-sm text-[#ff8990]">{error}</p>}
     {floating && isAndroid && <button type="button" disabled={!!busy || !loaded} onClick={() => { pauseFloatingMic(); void send('analisar a tela') }} className="self-start rounded-xl border border-[#45454a] px-3 py-2 text-sm">Ler tela</button>}
     {!floating && <p className="text-xs text-[#a3a5a9]">Diga “Lembre que…” para guardar algo, “O que você lembra?” para ver e “Limpar memória” para apagar tudo. Algumas notas podem ser usadas nas respostas do provedor de IA configurado.</p>}
-    <form onSubmit={e => {e.preventDefault();void send()}} className="flex gap-2"><button type="button" aria-label={listening ? 'Parar microfone' : 'Ativar microfone'} disabled={isAndroid && listening && !floating} onClick={togglePanelMic} className="rounded-xl border border-[#45454a] p-3">{listening ? <MicOff size={20} className="text-[#C5FF4A]"/> : <Mic size={20}/>}</button><input aria-label="Mensagem" onFocus={pauseFloatingMic} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Converse com a assistente…" className="min-w-0 flex-1 rounded-xl border border-[#45454a] bg-[#242628] p-3 text-white"/><button type="submit" disabled={!!busy || !loaded || !draft.trim()} aria-label="Enviar mensagem" className="rounded-xl bg-[#C5FF4A] p-3 text-[#101010] disabled:opacity-40"><Send size={20}/></button></form>
+    <form onSubmit={e => {e.preventDefault();void send()}} className="flex gap-2"><button type="button" aria-label={listening ? 'Parar microfone' : 'Ativar microfone'} disabled={!!pending || !!busy || (isAndroid && listening && !floating)} onClick={togglePanelMic} className="rounded-xl border border-[#45454a] p-3">{listening ? <MicOff size={20} className="text-[#C5FF4A]"/> : <Mic size={20}/>}</button><input aria-label="Mensagem" onFocus={pauseFloatingMic} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Converse com a assistente…" className="min-w-0 flex-1 rounded-xl border border-[#45454a] bg-[#242628] p-3 text-white"/><button type="submit" disabled={!!busy || !!pending || !loaded || !draft.trim()} aria-label="Enviar mensagem" className="rounded-xl bg-[#C5FF4A] p-3 text-[#101010] disabled:opacity-40"><Send size={20}/></button></form>
     <p className="text-xs text-[#9a9da0]">{floating ? (listening ? 'Ouvindo…' : voicePaused ? 'Microfone pausado. Toque para voltar a ouvir.' : 'Preparando a Toph…') : 'Toque no microfone para ditar.'} {!floating && <Link to="/settings" className="mono-accent underline">Configurar voz e assistente</Link>}</p>
   </div>
 }
