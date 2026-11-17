@@ -223,7 +223,7 @@ public class LifeOSAssistant extends Plugin {
         getActivity().runOnUiThread(() -> {
             String target = targetPackage(call.getString("app", ""));
             Intent launcher = target == null ? null : getContext().getPackageManager().getLaunchIntentForPackage(target);
-            if (launcher == null) { call.reject("O Android não encontrou esse aplicativo."); return; }
+            if (target == null) { call.reject("Esse aplicativo não está na lista da Toph."); return; }
             if ("open".equals(action) || "search".equals(action) || "profile".equals(action)) {
                 String value = call.getString("text", "").trim();
                 Intent destination = launcher;
@@ -244,11 +244,26 @@ public class LifeOSAssistant extends Plugin {
                     destination = new Intent(Intent.ACTION_VIEW, profile).setPackage(target);
                 }
                 try {
-                    getActivity().startActivity(destination);
+                    boolean fallback = false;
+                    if (destination == null && Build.VERSION.SDK_INT >= 33 && "open".equals(action)) {
+                        getContext().getPackageManager().getLaunchIntentSenderForPackage(target)
+                            .sendIntent(getContext(), 0, null, null, null);
+                    } else if (destination == null) {
+                        call.reject("Confira se o aplicativo está instalado.");
+                        return;
+                    } else {
+                        try {
+                            getActivity().startActivity(destination);
+                        } catch (ActivityNotFoundException error) {
+                            if ("open".equals(action) || destination.getData() == null) throw error;
+                            getActivity().startActivity(new Intent(Intent.ACTION_VIEW, destination.getData()));
+                            fallback = true;
+                        }
+                    }
+                    call.resolve(new JSObject().put("fallback", fallback));
                     if (getActivity() instanceof AssistantConversationActivity) getActivity().finish();
-                    call.resolve();
-                } catch (ActivityNotFoundException error) {
-                    call.reject("O aplicativo não conseguiu abrir esse destino.");
+                } catch (ActivityNotFoundException | android.content.IntentSender.SendIntentException | SecurityException error) {
+                    call.reject("Não consegui abrir esse destino. Confira se o aplicativo ou navegador está instalado.");
                 }
                 return;
             }
@@ -292,19 +307,6 @@ public class LifeOSAssistant extends Plugin {
     @ActivityCallback
     private void roleResult(PluginCall call, ActivityResult result) {
         if (call != null) call.resolve();
-    }
-
-    @PluginMethod
-    public void setCompactVoice(PluginCall call) {
-        Activity activity = getActivity();
-        if (!(activity instanceof AssistantConversationActivity)) {
-            call.resolve();
-            return;
-        }
-        activity.runOnUiThread(() -> {
-            ((AssistantConversationActivity) activity).setCompactVoice(Boolean.TRUE.equals(call.getBoolean("compact")));
-            call.resolve();
-        });
     }
 
     @PluginMethod

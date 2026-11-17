@@ -7,7 +7,7 @@ type DeviceControl = Parameters<typeof nativeAssistant.controlDevice>[0]
 export type AssistantAction = { kind: 'create-task'; title: string } | { kind: 'list-tasks' } | { kind: 'device'; control: DeviceControl } | { kind: 'bank-balances' } | { kind: 'screen' }
 const controlledApps = 'whatsapp|chrome|agenda|calculadora|keep|instagram'
 const apps = `${controlledApps}|facebook`
-const openApp = new RegExp(`^abr(?:ir|a) (?:o |a )?(${apps})[.!]?$`, 'i')
+const openApp = new RegExp(`^abr(?:ir|a|e) (?:o |a )?(?:aplicativo (?:do |da )?)?(${apps})[.!?]?$`, 'i')
 const scrollApp = new RegExp(`^rola(?:r)?(?: para)? (cima|baixo) n[oa] (${controlledApps})[.!]?$`, 'i')
 const typeApp = new RegExp(`^digit(?:ar|e) (.+) n[oa] (${controlledApps})[.!]?$`, 'i')
 const tapApp = new RegExp(`^toc(?:ar|a|e) (\\d{1,3})%[ ,]+(\\d{1,3})% n[oa] (${controlledApps})[.!]?$`, 'i')
@@ -15,6 +15,7 @@ const clickApp = new RegExp(`^(?:clicar?|clique|tocar?|toque) (?:em |no bot[aã]
 export const taskChangedEvent = 'lifeos:tasks-changed'
 
 export function parseAssistantAction(input: string): AssistantAction | null {
+  const spoken = input.trim().replace(/^(?:(?:ei|oi)\s+)?toph[,\s]+/i, '').replace(/^(?:voc[eê] )?(?:pode|consegue)\s+/i, '').replace(/(?:,? por favor| pra mim| para mim)[.!?]?$/i, '').trim()
   const create = input.match(/^(?:criar?|adicionar?)\s+(?:uma\s+)?tarefa(?:\s*:\s*|\s+)(.+)$/i)
   if (create) return { kind: 'create-task', title: create[1].trim() }
   if (/^(?:listar?|mostrar?)\s+(?:(?:as|minhas)\s+)?tarefas[.!?]?$/i.test(input)) return { kind: 'list-tasks' }
@@ -25,7 +26,7 @@ export function parseAssistantAction(input: string): AssistantAction | null {
   const web = input.match(/^(?:pesquis(?:ar|e)|busc(?:ar|a|que))(?: por)? (.+?) (?:no chrome|no google|na web)[.!?]?$/i)
     ?? input.match(/^pesquis(?:ar|e)(?: por)? (.+)$/i)
   if (web && !/ no instagram[.!?]?$/i.test(input)) return { kind: 'device', control: { action: 'search', app: 'chrome', text: web[1] } }
-  const open = input.match(openApp)
+  const open = spoken.match(openApp)
   if (open) return { kind: 'device', control: { action: 'open', app: open[1].toLowerCase() } }
   const scroll = input.match(scrollApp)
   if (scroll) return { kind: 'device', control: { action: scroll[1].toLowerCase() === 'cima' ? 'up' : 'down', app: scroll[2].toLowerCase() } }
@@ -45,7 +46,8 @@ export async function executeAssistantAction(action: AssistantAction, user?: str
   }
   if (action.kind === 'device') {
     if (!isAndroid) throw new Error('Este comando está disponível no app Android.')
-    await nativeAssistant.controlDevice(action.control)
+    const result = await nativeAssistant.controlDevice(action.control)
+    if (result?.fallback) return action.control.action === 'search' ? 'Abri a pesquisa no navegador disponível.' : 'Abri o link do perfil no aplicativo disponível.'
     if (action.control.action === 'search') return 'Abri a pesquisa no Chrome.'
     if (action.control.action === 'profile') return 'Abri o link do perfil no Instagram.'
     return action.control.action === 'open' ? 'Abri o aplicativo.' : 'Comando encaminhado ao Android.'

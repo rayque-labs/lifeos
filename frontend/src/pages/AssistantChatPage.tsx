@@ -16,10 +16,11 @@ type Recognition = { lang: string; continuous: boolean; interimResults: boolean;
 type SpeechWindow = Window & { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }
 const INTRO: Message = { role: 'model', text: 'Experimente “Criar tarefa: estudar Clojure” ou “Listar tarefas”.' }
 
-export function AssistantChatPage({ floating = false, compactVoice = false }: { floating?: boolean; compactVoice?: boolean }) {
+export function AssistantChatPage({ floating = false }: { floating?: boolean }) {
   const { user } = useAuth()
   const voiceEnabled = useRef(floating)
   const greeted = useRef(false)
+  const voiceSessionActive = useRef(false)
   const [voiceSession, setVoiceSession] = useState(0)
   const [voicePaused, setVoicePaused] = useState(false)
   const request = useRef<AbortController | null>(null)
@@ -91,7 +92,7 @@ export function AssistantChatPage({ floating = false, compactVoice = false }: { 
     if (!local && AI_PROVIDERS[provider].requiresKey && !key.trim()) {
       const message = 'Conecte uma API de IA para conversar. Os comandos de tarefas já estão disponíveis.'
       setError(message)
-      if (compactVoice) await speak(message, true)
+      if (floating) await speak(message, true)
       return
     }
     setDraft('')
@@ -103,7 +104,7 @@ export function AssistantChatPage({ floating = false, compactVoice = false }: { 
     const controller = new AbortController()
     request.current = controller
     const timeout = local ? undefined : window.setTimeout(() => controller.abort('timeout'), 25000)
-    const announce = action && !compactVoice ? window.setTimeout(() => {
+    const announce = action && !floating ? window.setTimeout(() => {
       if (voiceEnabled.current && !controller.signal.aborted) void speak(status)
     }, 800) : undefined
     try {
@@ -114,11 +115,15 @@ export function AssistantChatPage({ floating = false, compactVoice = false }: { 
       if (controller.signal.aborted) return
       const privateResult = memory?.kind === 'list' || action?.kind === 'bank-balances' || action?.kind === 'screen'
       setMessages(prev => [...prev, { role: 'model', text: answer, local, private: privateResult }])
-      if (voiceEnabled.current && action?.kind === 'screen') await speak('Li o texto da tela. Abra o chat da Toph para conferir.', compactVoice)
-      else if (voiceEnabled.current && !privateResult) await speak(answer, compactVoice)
+      if (voiceEnabled.current && action?.kind === 'screen') await speak('Li o texto da tela. Abra o chat da Toph para conferir.', floating)
+      else if (voiceEnabled.current && !privateResult) await speak(answer, floating)
     } catch (reason) {
       if (controller.signal.reason === 'timeout') setError('A IA demorou para responder.')
-      else if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Não foi possível executar o pedido.')
+      else if (!controller.signal.aborted) {
+        const message = reason instanceof Error ? reason.message : 'Não foi possível executar o pedido.'
+        setError(message)
+        if (floating && voiceEnabled.current && action?.kind === 'device') await speak(message, true)
+      }
     } finally {
       window.clearTimeout(timeout)
       window.clearTimeout(announce)
@@ -131,8 +136,9 @@ export function AssistantChatPage({ floating = false, compactVoice = false }: { 
   const account = user?.email
 
   useEffect(() => {
-    if (!compactVoice || !isAndroid || !loaded || !account) return
+    if (!floating || !isAndroid || !loaded || !account) return
     let active = true
+    voiceSessionActive.current = true
     let timer: number | undefined
     let silentTurns = 0
     const pause = () => {
@@ -140,12 +146,12 @@ export function AssistantChatPage({ floating = false, compactVoice = false }: { 
       setVoicePaused(true)
     }
     const next = async () => {
-      if (!active) return
+      if (!active || !voiceSessionActive.current) return
       if (document.hidden) { pause(); return }
       try {
         setListening(true)
         const result = await nativeAssistant.listen()
-        if (!active) return
+        if (!active || !voiceSessionActive.current) return
         if (document.hidden) { pause(); return }
         setListening(false)
         const text = result.text.trim()
@@ -188,12 +194,13 @@ export function AssistantChatPage({ floating = false, compactVoice = false }: { 
     }, 0)
     return () => {
       active = false
+      voiceSessionActive.current = false
       document.removeEventListener('visibilitychange', onVisibility)
       window.clearTimeout(timer)
       void nativeAssistant.stopListening().catch(() => {})
       stopVoice()
     }
-  }, [account, compactVoice, loaded, voiceSession])
+  }, [account, floating, loaded, voiceSession])
 
   const toggleListening = async () => {
     if (isAndroid) {
@@ -225,14 +232,20 @@ export function AssistantChatPage({ floating = false, compactVoice = false }: { 
       r.start(); setListening(true)
     } catch { setError('Não foi possível iniciar o microfone.'); setListening(false) }
   }
-  if (compactVoice) return <div className="min-w-0 px-3 pb-2 text-xs text-[#F1F1ED]" aria-live="polite">
-    <p>{error || busy || (listening ? 'Ouvindo…' : !account ? 'Entre no LifeOS para usar a voz.' : voicePaused ? 'Microfone pausado' : 'Preparando a Toph…')}</p>
-    {voicePaused && <button type="button" className="mono-accent underline" onClick={() => {
-      setError('')
-      setVoicePaused(false)
-      setVoiceSession(value => value + 1)
-    }}>Voltar a ouvir</button>}
-  </div>
+  const pauseFloatingMic = () => {
+    if (!floating || !isAndroid || !voiceSessionActive.current) return
+    voiceSessionActive.current = false
+    setListening(false)
+    setVoicePaused(true)
+    void nativeAssistant.stopListening().catch(() => {})
+  }
+  const togglePanelMic = () => {
+    if (!floating || !isAndroid) { void toggleListening(); return }
+    if (voiceSessionActive.current && !voicePaused) { pauseFloatingMic(); return }
+    setError('')
+    setVoicePaused(false)
+    setVoiceSession(value => value + 1)
+  }
   return <div className={`mx-auto flex w-full max-w-3xl flex-col gap-3 text-[#F1F1ED] ${floating ? 'assistant-compact' : 'min-h-[65vh]'}`}>
     {!floating && <SectionBanner section="chat" pageHeading />}
     {!floating && isAndroid && <Link to="/settings#toph-flutuante" className="mono-accent self-start text-sm underline">Configurar Toph flutuante</Link>}
@@ -257,9 +270,9 @@ export function AssistantChatPage({ floating = false, compactVoice = false }: { 
     <div className="flex items-center justify-between gap-3"><button type="button" onClick={() => {voiceEnabled.current = !voiceEnabled.current; setVoiceMode(voiceEnabled.current); stopVoice()}} className="flex items-center gap-2 rounded-xl border border-[#45454a] px-3 py-2 text-sm">{voiceMode ? <Volume2 size={17}/> : <VolumeX size={17}/>} {floating ? (voiceMode ? 'Voz ligada' : 'Ligar voz') : (voiceMode ? 'Respostas faladas: ativadas' : 'Ativar respostas faladas')}</button><button type="button" aria-label="Limpar conversa" disabled={!!busy} onClick={() => {setMessages([INTRO]);setError('');stopVoice()}} className="flex items-center gap-2 text-sm text-[#a3a5a9]"><Trash2 size={16}/> {floating ? 'Limpar' : 'Limpar conversa'}</button></div>
     <div aria-live="polite" className="assistant-messages flex min-h-40 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-[#34363a] bg-[#151617] p-3">{messages.map((m,i) => <div key={i} className={m.role === 'user' ? 'assistant-user-message ml-auto max-w-[90%] rounded-2xl px-4 py-3' : 'mr-auto max-w-[90%] rounded-2xl bg-[#282a2c] px-4 py-3 text-[#F1F1ED]'}><p className="whitespace-pre-wrap text-sm">{m.text}</p>{m.role === 'model' && !m.private && <button type="button" aria-label="Ouvir resposta" className="mt-2 opacity-70" onClick={() => void speak(m.text)}><Volume2 size={15}/></button>}</div>)}{busy && <p className="text-sm text-[#a3a5a9]">{busy}</p>}<div ref={bottom}/></div>
     {error && <p role="alert" className="text-sm text-[#ff8990]">{error}</p>}
-    {floating && isAndroid && <button type="button" disabled={!!busy || !loaded} onClick={() => void send('analisar a tela')} className="self-start rounded-xl border border-[#45454a] px-3 py-2 text-sm">Ler tela</button>}
+    {floating && isAndroid && <button type="button" disabled={!!busy || !loaded} onClick={() => { pauseFloatingMic(); void send('analisar a tela') }} className="self-start rounded-xl border border-[#45454a] px-3 py-2 text-sm">Ler tela</button>}
     {!floating && <p className="text-xs text-[#a3a5a9]">Diga “Lembre que…” para guardar algo, “O que você lembra?” para ver e “Limpar memória” para apagar tudo. Algumas notas podem ser usadas nas respostas do provedor de IA configurado.</p>}
-    <form onSubmit={e => {e.preventDefault();void send()}} className="flex gap-2"><button type="button" aria-label={listening && !isAndroid ? 'Parar microfone' : 'Ditado por voz'} disabled={isAndroid && listening} onClick={() => void toggleListening()} className="rounded-xl border border-[#45454a] p-3">{listening ? <MicOff size={20} className="text-[#C5FF4A]"/> : <Mic size={20}/>}</button><input aria-label="Mensagem" value={draft} onChange={e => setDraft(e.target.value)} placeholder="Converse com a assistente…" className="min-w-0 flex-1 rounded-xl border border-[#45454a] bg-[#242628] p-3 text-white"/><button type="submit" disabled={!!busy || !loaded || !draft.trim()} aria-label="Enviar mensagem" className="rounded-xl bg-[#C5FF4A] p-3 text-[#101010] disabled:opacity-40"><Send size={20}/></button></form>
-    <p className="text-xs text-[#9a9da0]">Toque no microfone para ditar. {!floating && <Link to="/settings" className="mono-accent underline">Configurar voz e assistente</Link>}</p>
+    <form onSubmit={e => {e.preventDefault();void send()}} className="flex gap-2"><button type="button" aria-label={listening ? 'Parar microfone' : 'Ativar microfone'} disabled={isAndroid && listening && !floating} onClick={togglePanelMic} className="rounded-xl border border-[#45454a] p-3">{listening ? <MicOff size={20} className="text-[#C5FF4A]"/> : <Mic size={20}/>}</button><input aria-label="Mensagem" onFocus={pauseFloatingMic} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Converse com a assistente…" className="min-w-0 flex-1 rounded-xl border border-[#45454a] bg-[#242628] p-3 text-white"/><button type="submit" disabled={!!busy || !loaded || !draft.trim()} aria-label="Enviar mensagem" className="rounded-xl bg-[#C5FF4A] p-3 text-[#101010] disabled:opacity-40"><Send size={20}/></button></form>
+    <p className="text-xs text-[#9a9da0]">{floating ? (listening ? 'Ouvindo…' : voicePaused ? 'Microfone pausado. Toque para voltar a ouvir.' : 'Preparando a Toph…') : 'Toque no microfone para ditar.'} {!floating && <Link to="/settings" className="mono-accent underline">Configurar voz e assistente</Link>}</p>
   </div>
 }
