@@ -51,8 +51,21 @@ async function getKey(keyName: string): Promise<CryptoKey> {
   const existing = await read<CryptoKey>(keyName)
   if (existing) return existing
   const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
-  await write(keyName, key)
-  return key
+  const db = await openDB()
+  try {
+    return await new Promise<CryptoKey>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite')
+      const store = tx.objectStore(STORE)
+      let selected = key
+      const request = store.get(keyName)
+      request.onsuccess = () => {
+        if (request.result) selected = request.result as CryptoKey
+        else store.put(key, keyName)
+      }
+      tx.oncomplete = () => resolve(selected)
+      tx.onabort = tx.onerror = () => reject(tx.error)
+    })
+  } finally { db.close() }
 }
 export async function saveEncrypted(name: string, keyName: string, config: unknown): Promise<void> {
   const key = await getKey(keyName)

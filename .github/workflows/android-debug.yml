@@ -70,6 +70,7 @@ jobs:
           assert c['appId'] == 'com.rayquelabs.lifeos'
           assert c['webDir'] == 'dist'
           assert Path('dist/index.html').is_file()
+          assert Path('dist/voice-session.html').is_file()
           print('Capacitor JSON and offline web bundle OK')
           PY
           npx cap add android

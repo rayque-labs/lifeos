@@ -5,7 +5,7 @@ import { bankSnapshot, loadConnection } from './mobile-integrations'
 import type { Task } from './types'
 
 type DeviceControl = Parameters<typeof nativeAssistant.controlDevice>[0]
-export type AssistantAction = { kind: 'photos-review' } | FileAction | { kind: 'whatsapp-send'; phone: string; text: string } | { kind: 'create-task'; title: string } | { kind: 'list-tasks' } | { kind: 'device'; control: DeviceControl } | { kind: 'bank-balances' } | { kind: 'screen' }
+export type AssistantAction = { kind: 'web-search'; query: string } | { kind: 'photos-review' } | FileAction | { kind: 'whatsapp-send'; phone: string; text: string } | { kind: 'create-task'; title: string } | { kind: 'list-tasks' } | { kind: 'device'; control: DeviceControl } | { kind: 'bank-balances' } | { kind: 'screen' }
 const controlledApps = 'whatsapp|chrome|agenda|calculadora|keep|instagram'
 const apps = `${controlledApps}|facebook`
 const openApp = new RegExp(`^abr(?:ir|a|e) (?:o |a )?(?:aplicativo (?:do |da )?)?(${apps})[.!?]?$`, 'i')
@@ -28,9 +28,11 @@ export function parseAssistantAction(input: string): AssistantAction | null {
   if (/^(?:(?:analis(?:ar|e)|le(?:r|ia)|descrev(?:er|a)) (?:a |esta )?tela|o que (?:aparece|tem|est[aá]) (?:nessa|nesta|na) tela)[.!?]?$/i.test(input)) return { kind: 'screen' }
   const profile = input.match(/^(?:abr(?:ir|a)(?: o perfil)?|busc(?:ar|a|que)|pesquis(?:ar|e)) @([a-z0-9_][a-z0-9_.]{0,29})(?: no instagram)?[!?]?$/i)
   if (profile) return { kind: 'device', control: { action: 'profile', app: 'instagram', text: profile[1] } }
-  const web = input.match(/^(?:pesquis(?:ar|e)|busc(?:ar|a|que))(?: por)? (.+?) (?:no chrome|no google|na web)[.!?]?$/i)
-    ?? input.match(/^pesquis(?:ar|e)(?: por)? (.+)$/i)
+  const web = input.match(/^(?:pesquis(?:ar|e)|busc(?:ar|a|que))(?: por)? (.+?) (?:no chrome)[.!?]?$/i)
+
   if (web && !/ no instagram[.!?]?$/i.test(input)) return { kind: 'device', control: { action: 'search', app: 'chrome', text: web[1] } }
+  const research = input.match(/^(?:pesquis(?:ar|e)|busc(?:ar|a|que))(?: por)? (.+?)(?: no google| na web)?[.!?]?$/i)
+  if (research && !/ no instagram[.!?]?$/i.test(input)) return { kind: 'web-search', query: research[1] }
   const open = spoken.match(openApp)
   if (open) return { kind: 'device', control: { action: 'open', app: open[1].toLowerCase() } }
   const scroll = input.match(scrollApp)
@@ -45,6 +47,7 @@ export function parseAssistantAction(input: string): AssistantAction | null {
 }
 
 export async function executeAssistantAction(action: AssistantAction, user?: string) {
+  if (action.kind === 'web-search') throw new Error('A pesquisa precisa passar pelo provedor conectado no chat.')
   if (action.kind === 'photos-review') throw new Error('Abra o painel Fotos duplicadas para analisar e revisar.')
   if (action.kind === 'files' || action.kind === 'whatsapp-send') throw new Error('Esta ação precisa passar pelo executor com prévia.')
   if (action.kind === 'screen') {

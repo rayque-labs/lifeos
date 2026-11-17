@@ -49,11 +49,11 @@ if alias.find(f"intent-filter/action[@{{{ANDROID}}}name='{assist}']") is None:
     update_element(intent, "category", "android.intent.category.DEFAULT")
 
 service = update_element(app, "service", ".AssistantOverlayService",
-    exported="false", foregroundServiceType="specialUse")
+    exported="false", foregroundServiceType="specialUse|microphone")
 update_element(service, "property", "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE",
     value="User-enabled draggable digital assistant over other Android applications")
 
-for permission in ("SYSTEM_ALERT_WINDOW", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_SPECIAL_USE", "FOREGROUND_SERVICE_MEDIA_PROJECTION", "RECORD_AUDIO"):
+for permission in ("SYSTEM_ALERT_WINDOW", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_SPECIAL_USE", "FOREGROUND_SERVICE_MICROPHONE", "FOREGROUND_SERVICE_MEDIA_PROJECTION", "RECORD_AUDIO"):
     update_element(base, "uses-permission", f"android.permission.{permission}")
 
 update_element(app, "activity", ".PhotoTrashActivity", exported="false", theme="@style/LifeOSOverlayPanel")

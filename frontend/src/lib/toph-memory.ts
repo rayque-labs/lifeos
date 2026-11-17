@@ -61,14 +61,10 @@ export function executeMemoryCommand(command: MemoryCommand, accountId: number):
   return run
 }
 
-export async function loadMemoryContext(accountId: number, message: string): Promise<string[]> {
+export async function loadMemoryContext(accountId: number, _message: string): Promise<string[]> {
   await pending
   const notes = await loadEncrypted<string[]>(...memoryKeys(accountId)) ?? []
-  const words = new Set(normalize(message).match(/[a-z0-9]{4,}/g) ?? [])
-  return notes.map((note, index) => ({
-    note,
-    index,
-    score: [...new Set(normalize(note).match(/[a-z0-9]{4,}/g) ?? [])].filter(word => words.has(word)).length,
-  })).filter(({ note, score }) => score > 0 || /^(prefiro|gosto de|minha preferencia)\b/.test(normalize(note)))
-    .sort((a, b) => b.score - a.score || b.index - a.index).slice(0, 5).map(({ note }) => note)
+  // The bounded explicit memory must not disappear just because wording changed.
+  // Keep all notes (at most 30 x 240 chars), not only lexical matches.
+  return notes.slice(-MAX_MEMORIES).map(note => note.slice(0, MAX_LENGTH))
 }

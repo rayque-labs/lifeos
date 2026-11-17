@@ -39,6 +39,10 @@ import java.io.InputStream;
 
 public class AssistantOverlayService extends Service {
     private static final String CHANNEL = "lifeos_assistant_overlay";
+    private static final String PAUSE_VOICE = "com.rayquelabs.lifeos.PAUSE_VOICE";
+    private TophVoiceSession voice;
+    private Notification.Builder notificationBuilder;
+    private android.content.BroadcastReceiver screenOff;
     private static final String STOP = "com.rayquelabs.lifeos.STOP_OVERLAY";
     private static volatile AssistantOverlayService instance;
     private static int resumedActivities;
@@ -65,6 +69,8 @@ public class AssistantOverlayService extends Service {
         else activity.startService(service);
     }
 
+    static boolean hasVoiceSession() { return instance != null && instance.voice != null; }
+
     static boolean isRunning() {
         return instance != null;
     }
@@ -81,7 +87,10 @@ public class AssistantOverlayService extends Service {
 
     static void activityVisibilityChanged(boolean visible) {
         resumedActivities = Math.max(0, resumedActivities + (visible ? 1 : -1));
-        if (instance != null) instance.updateMascot();
+        if (instance != null) {
+            if (instance.voice != null) instance.voice.suspend(resumedActivities > 0);
+            instance.updateMascot();
+        }
     }
 
     @Override
@@ -102,6 +111,7 @@ public class AssistantOverlayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
+        if (PAUSE_VOICE.equals(intent.getAction()) && voice != null) { voice.togglePause(); return START_NOT_STICKY; }
         NotificationManager notifications = getSystemService(NotificationManager.class);
         Notification.Builder builder;
         if (Build.VERSION.SDK_INT >= 26) {
@@ -113,6 +123,13 @@ public class AssistantOverlayService extends Service {
         PendingIntent stop = PendingIntent.getService(this, 0,
             new Intent(this, AssistantOverlayService.class).setAction(STOP),
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        notificationBuilder = builder;
+        boolean voiceAllowed = getSharedPreferences("toph-voice", MODE_PRIVATE).getBoolean("enabled", true)
+            && checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        if (voiceAllowed) {
+            PendingIntent pause = PendingIntent.getService(this, 1, new Intent(this, AssistantOverlayService.class).setAction(PAUSE_VOICE), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            builder.addAction(new Notification.Action.Builder(null, "Pausar / retomar voz", pause).build());
+        }
         Notification notification = builder.setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setContentTitle("Toph flutuante")
             .setContentText("Disponível sobre outros aplicativos")
@@ -120,9 +137,27 @@ public class AssistantOverlayService extends Service {
             .addAction(new Notification.Action.Builder(null, "Encerrar Toph", stop).build())
             .build();
         if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(706, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            startForeground(706, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE | (voiceAllowed ? ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE : 0));
+        } else if (Build.VERSION.SDK_INT >= 30 && voiceAllowed) {
+            startForeground(706, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
         } else {
             startForeground(706, notification);
+        }
+        if (voiceAllowed && voice == null) {
+            voice = new TophVoiceSession(this, new TophVoiceSession.Host() {
+                public void status(String text) {
+                    if (notificationBuilder != null) {
+                        getSystemService(NotificationManager.class).notify(706, notificationBuilder.setContentText(text).build());
+                    }
+                    if (mascot != null) { mascot.setContentDescription(text + ". Toque para abrir chat; segure para pausar voz."); mascot.invalidate(); }
+                }
+                public void end() { stopSelf(); }
+            });
+            voice.suspend(resumedActivities > 0);
+            screenOff = new android.content.BroadcastReceiver() {
+                @Override public void onReceive(Context context, Intent intent) { if (voice != null) voice.pause("Tela bloqueada · voz pausada"); }
+            };
+            registerReceiver(screenOff, new android.content.IntentFilter(Intent.ACTION_SCREEN_OFF));
         }
         updateMascot();
         return START_NOT_STICKY;
@@ -152,6 +187,7 @@ public class AssistantOverlayService extends Service {
             }
             mascot = new MascotView();
             mascot.setContentDescription("Conversar por voz com a Toph");
+            mascot.setOnLongClickListener(view -> { if (voice != null) voice.togglePause(); return true; });
             mascot.setOnClickListener(view -> openConversation());
             mascot.setOnTouchListener(new MascotDrag());
             int type = Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -225,6 +261,8 @@ public class AssistantOverlayService extends Service {
 
     @Override
     public void onDestroy() {
+        if (voice != null) { voice.destroy(); voice = null; }
+        if (screenOff != null) unregisterReceiver(screenOff);
         getContentResolver().unregisterContentObserver(assistantChange);
         handler.removeCallbacksAndMessages(null);
         hideMascot();
@@ -238,12 +276,15 @@ public class AssistantOverlayService extends Service {
         private int originX;
         private int originY;
         private boolean moved;
+        private boolean held;
+        private final Runnable longPress = () -> { if (!moved && voice != null) { held = true; voice.togglePause(); } };
         private final int threshold = ViewConfiguration.get(AssistantOverlayService.this).getScaledTouchSlop();
 
         @Override
         public boolean onTouch(View view, MotionEvent event) {
             switch (event.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
+                    held = false; handler.postDelayed(longPress, ViewConfiguration.getLongPressTimeout());
                     downX = event.getRawX();
                     downY = event.getRawY();
                     originX = placement.x;
@@ -261,9 +302,11 @@ public class AssistantOverlayService extends Service {
                     if (showing) windows.updateViewLayout(mascot, placement);
                     return true;
                 case MotionEvent.ACTION_UP:
-                    if (!moved) view.performClick();
+                    handler.removeCallbacks(longPress);
+                    if (!moved && !held) view.performClick();
                     return true;
                 case MotionEvent.ACTION_CANCEL:
+                    handler.removeCallbacks(longPress);
                     return true;
                 default:
                     return false;
@@ -302,6 +345,12 @@ public class AssistantOverlayService extends Service {
             canvas.clipPath(silhouette);
             canvas.drawBitmap(artwork, null, artworkBounds, paint);
             canvas.restore();
+            if (voice != null) {
+                paint.setColor(android.graphics.Color.rgb(197, 255, 74));
+                paint.setTextSize(dp(10)); paint.setTextAlign(Paint.Align.CENTER);
+                String state = voice.status().startsWith("Ouvindo") ? "Ouvindo" : voice.status().contains("falando") ? "Falando" : voice.status().contains("pensando") ? "Pensando" : "Voz";
+                canvas.drawText(state, getWidth() / 2f, getHeight() - dp(2), paint);
+            }
         }
     }
 }

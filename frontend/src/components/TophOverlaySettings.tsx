@@ -4,6 +4,7 @@ import { Button, Card } from './ui'
 
 export function TophOverlaySettings() {
   const [status, setStatus] = useState<Awaited<ReturnType<typeof nativeAssistant.getOverlayStatus>> | null>(null)
+  const [voice, setVoice] = useState(true)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
 
@@ -38,10 +39,10 @@ export function TophOverlaySettings() {
     setBusy(true)
     setNotice('')
     try {
-      const { state } = await nativeAssistant.toggleOverlay()
+      const { state } = await nativeAssistant.toggleOverlay({ voice })
       const current = await nativeAssistant.getOverlayStatus()
       setStatus({ ...current, running: state === 'started' })
-      setNotice(state === 'started' ? 'Saia do LifeOS para ver a Toph. Toque nela para conversar.' :
+      setNotice(state === 'started' ? (voice ? 'Saia do LifeOS: a Toph saúda e ouve sem abrir a janela. Segure o bonequinho para pausar ou retomar.' : 'Saia do LifeOS para ver a Toph. Toque nela para conversar.') :
         state === 'stopped' ? 'Toph flutuante encerrada.' : 'Autorize Aparecer sobre outros apps para o LifeOS.')
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : 'Não foi possível iniciar a Toph flutuante.')
@@ -58,6 +59,8 @@ export function TophOverlaySettings() {
           status && !status.defaultAssistant ? 'Selecione o LifeOS como assistente padrão para ativar a Toph.' :
           'A Toph aparece sobre outros apps. Toque nela para conversar por voz.'}</p>
       </div>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={voice} disabled={!!status?.running} onChange={e => setVoice(e.target.checked)} />Conversar sem abrir janela</label>
+      <p className="text-xs opacity-70">Usa o microfone após ativar e sair do LifeOS. Notificação permite pausar e encerrar. Pausa ao bloquear a tela ou após silêncio. A voz do bonequinho usa a síntese pt-BR do Android; reconhecimento pode usar internet.</p>
       <div className="flex flex-wrap gap-2">
         <Button disabled={busy} onClick={() => void toggle()}>{status?.running ? 'Encerrar Toph flutuante' : 'Ativar Toph flutuante'}</Button>
         <Button variant="secondary" disabled={busy} onClick={() => void configure()}>Assistente padrão do Android</Button>

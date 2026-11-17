@@ -55,7 +55,8 @@ public class LifeOSAssistant extends Plugin {
         call.resolve(new JSObject()
             .put("defaultAssistant", AssistantOverlayService.isDefaultAssistant(getContext()))
             .put("allowed", Settings.canDrawOverlays(getContext()))
-            .put("running", AssistantOverlayService.isRunning()));
+            .put("running", AssistantOverlayService.isRunning())
+            .put("voiceSession", AssistantOverlayService.hasVoiceSession()));
     }
 
     @PluginMethod
@@ -95,12 +96,28 @@ public class LifeOSAssistant extends Plugin {
     }
 
     private void startOverlay(Activity activity, PluginCall call) {
+        boolean voice = call.getBoolean("voice", true);
+        activity.getSharedPreferences("toph-voice", android.content.Context.MODE_PRIVATE).edit().putBoolean("enabled", voice).apply();
+        if (voice && getPermissionState("microphone") != PermissionState.GRANTED) {
+            requestPermissionForAlias("microphone", call, "overlayVoicePermission");
+            return;
+        }
         try {
             AssistantOverlayService.startFrom(activity);
             call.resolve(new JSObject().put("state", "started"));
         } catch (RuntimeException error) {
             call.reject("Abra o LifeOS e tente ativar a Toph novamente.");
         }
+    }
+
+    @PermissionCallback
+    private void overlayVoicePermission(PluginCall call) {
+        if (call == null) return;
+        if (getPermissionState("microphone") != PermissionState.GRANTED) {
+            call.reject("Autorize o microfone ou desative Conversar sem abrir janela para usar somente o bonequinho.");
+            return;
+        }
+        startOverlay(getActivity(), call);
     }
 
     @PluginMethod

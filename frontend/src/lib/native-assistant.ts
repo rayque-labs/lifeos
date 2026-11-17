@@ -2,8 +2,8 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 
 interface NativeAssistantPlugin {
   getPanelMode(): Promise<{ external: boolean }>
-  getOverlayStatus(): Promise<{ defaultAssistant: boolean; allowed: boolean; running: boolean }>
-  toggleOverlay(): Promise<{ state: 'started' | 'stopped' | 'permission' }>
+  getOverlayStatus(): Promise<{ defaultAssistant: boolean; allowed: boolean; running: boolean; voiceSession?: boolean }>
+  toggleOverlay(options?: { voice: boolean }): Promise<{ state: 'started' | 'stopped' | 'permission' }>
   closePanel(options: { end: boolean }): Promise<void>
   markOverlayDataChanged(): Promise<void>
   openSettings(): Promise<void>

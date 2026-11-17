@@ -1,6 +1,6 @@
 import type { FileAction } from './file-actions'
 
-export type PlannedAction = { kind: 'photos-review' } | FileAction | { kind: 'create-task'; title: string } | { kind: 'list-tasks' } | { kind: 'whatsapp-send'; phone: string; text: string }
+export type PlannedAction = { kind: 'web-search'; query: string } | { kind: 'photos-review' } | FileAction | { kind: 'create-task'; title: string } | { kind: 'list-tasks' } | { kind: 'whatsapp-send'; phone: string; text: string }
 export type Decision = { reply: string; action?: PlannedAction }
 
 /** Parse model output as untrusted data. No paths, URLs, code, or arbitrary tool names. */
@@ -19,6 +19,7 @@ export function validateDecision(raw: string): Decision {
     if (typeof v !== 'string' || v.length > max || (required && !v.trim())) throw new Error(`Campo inválido no plano: ${key}.`)
     return v
   }
+  if (a.kind === 'web-search') return { reply: obj.reply, action: { kind: 'web-search', query: str('query', 1000) } }
   if (a.kind === 'photos-review') return { reply: obj.reply, action: { kind: 'photos-review' } }
   if (a.kind === 'create-task') return { reply: obj.reply, action: { kind: 'create-task', title: str('title', 150) } }
   if (a.kind === 'list-tasks') return { reply: obj.reply, action: { kind: 'list-tasks' } }
@@ -36,8 +37,9 @@ export function validateDecision(raw: string): Decision {
   return { reply: obj.reply, action: { kind: 'files', operation, name, ...(operation === 'write' ? { content: str('content', 20000, false) } : {}), ...(operation === 'rename' ? { source: str('source', 100) } : {}) } }
 }
 
-export const EXECUTOR_PROMPT = `Você planeja tarefas para a Toph no Android. Responda SOMENTE JSON {"reply":"texto em português", "action":null} ou com UMA ação abaixo.
+export const EXECUTOR_PROMPT = `Você planeja tarefas para a Toph no Android. Observe o contexto disponível, proponha uma etapa e aguarde o resultado real antes de afirmar conclusão. Uma proposta não é execução. Se uma etapa falhar, explique o bloqueio sem repetir uma alteração já feita. Não invente evidências de tela. Não existe execução automática de planos antigos ao reabrir a janela. Responda SOMENTE JSON {"reply":"texto em português", "action":null} ou com UMA ação abaixo.
 Ferramentas permitidas:
+{"kind":"web-search","query":"consulta pública completa"} pesquisa informações atuais e devolve fontes no chat. Use para notícias, preços, fatos recentes ou quando o usuário pedir pesquisa. Não inclua segredos ou dados pessoais desnecessários. Não opera contas ou apps.
 {"kind":"photos-review"} abre a análise local de duplicatas exatas. O usuário autoriza a galeria, analisa, escolhe cópias e confirma no Android. Nunca seleciona nem exclui fotos automaticamente.
 {"kind":"files","operation":"list","query":"filtro opcional"}
 {"kind":"files","operation":"organize"} organiza TODOS os arquivos soltos da pasta autorizada em subpastas por tipo. Não interpreta o conteúdo das imagens. Se o pedido limitar tipos ou tiver critério diferente, explique a limitação e peça ajuste, sem propor organize.

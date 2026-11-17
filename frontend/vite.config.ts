@@ -4,5 +4,6 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: { rolldownOptions: { input: { main: 'index.html', voice: 'voice-session.html' } } },
   plugins: [react(), tailwindcss()],
 })
