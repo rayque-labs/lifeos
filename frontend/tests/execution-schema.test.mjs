@@ -35,3 +35,7 @@ test('local commands recognize normal Portuguese without a model',()=>{
 test('negations and restricted requests never trigger local organization',()=>{
   for(const text of ['não organize meus arquivos','organize apenas PDFs','exclua todas as fotos','como organizar arquivos?'])assert.equal(parseFileAction(text),null)
 })
+test('photo tool can only open review, never select or delete on model authority', () => {
+  assert.deepEqual(validateDecision(plan({kind:'photos-review',ids:['1','2'],delete:true})).action,{kind:'photos-review'})
+  for(const kind of ['photos-delete','photos-trash','photos-select'])assert.throws(()=>validateDecision(plan({kind,ids:['1']})))
+})

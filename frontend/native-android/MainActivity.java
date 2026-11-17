@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
         if (!(this instanceof AssistantConversationActivity)) SplashScreen.installSplashScreen(this);
         registerPlugin(LifeOSAssistant.class);
         registerPlugin(TophFiles.class);
+        registerPlugin(TophPhotos.class);
         super.onCreate(savedInstanceState);
     }
 

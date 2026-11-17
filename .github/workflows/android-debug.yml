@@ -55,6 +55,8 @@ jobs:
           mkdir -p /tmp/lifeos-file-tests
           javac -d /tmp/lifeos-file-tests native-android/FileRules.java native-android/tests/FileRulesTest.java
           java -cp /tmp/lifeos-file-tests com.rayquelabs.lifeos.FileRulesTest
+          javac -d /tmp/lifeos-file-tests native-android/PhotoRules.java native-android/tests/PhotoRulesTest.java
+          java -cp /tmp/lifeos-file-tests com.rayquelabs.lifeos.PhotoRulesTest
       - name: Build offline web app
         env:
           VITE_OFFLINE_MODE: 'true'

@@ -16,7 +16,7 @@ A conversa usa a API de IA já configurada para propor uma ferramenta validada. 
 
 ## Limites reais
 
-Ainda não inclui exclusão/lixeira, comparação de fotos, busca recursiva, integração OAuth de Drive/Gmail/Notion/Spotify, automação de Instagram/Facebook, nem controle visual de outros aplicativos. O provedor de documentos precisa suportar movimentações. O seletor Android restringe determinadas pastas. Termux/Evolution/PostgreSQL/Redis precisam estar rodando para WhatsApp.
+Inclui agora revisão de duplicatas exatas e lixeira de fotos, descritas abaixo. Ainda não inclui exclusão definitiva, comparação visual de fotos semelhantes, busca recursiva, integração OAuth de Drive/Gmail/Notion/Spotify, automação de Instagram/Facebook, nem controle visual de outros aplicativos. O provedor de documentos precisa suportar movimentações. O seletor Android restringe determinadas pastas. Termux/Evolution/PostgreSQL/Redis precisam estar rodando para WhatsApp.
 
 O executor é compartilhado pelo chat principal e pelo painel flutuante. Recriar a Activity descarta a prévia; faça o pedido de novo. Resultados e progresso ficam na conversa da sessão, sem registro persistente de auditoria nesta entrega.
 
@@ -37,3 +37,20 @@ O executor é compartilhado pelo chat principal e pelo painel flutuante. Recriar
 7. Repita pelo painel flutuante. Teste cancelamento e retorno após alternar aplicativos.
 
 A compilação e os testes automáticos não comprovam o comportamento no dispositivo físico. Não enviar mensagens reais como parte do CI.
+
+
+## Fotos duplicadas — segunda entrega
+
+No chat normal ou flutuante, toque em **Fotos duplicadas**, ou peça **encontre fotos duplicadas**. O planejador só pode abrir a revisão, nunca escolher fotos ou acionar a lixeira por conta própria.
+
+- Android 11 ou superior, MediaStore. Solicita READ_MEDIA_IMAGES (ou READ_EXTERNAL_STORAGE até API 32) e respeita o acesso parcial do Android 14+. ACCESS_MEDIA_LOCATION permite ler os bytes originais sem redigir metadados, evitando agrupar fotos que diferem apenas nos dados EXIF. Nenhum dado de localização é interpretado ou enviado.
+- Compara SHA-256 de arquivos originais de mesmo tamanho. Até 500 imagens recentes acessíveis, 32 MiB por imagem, 300 MiB lidos por análise. Imagens maiores, ilegíveis ou fora do orçamento não são comparadas. A interface informa cobertura parcial e itens ignorados.
+- Uma imagem por grupo fica protegida na seleção (menor ID do MediaStore, sem alegar que é o original da câmera). As demais começam desmarcadas. O usuário seleciona até 100 cópias.
+- O nativo valida a seleção contra um resultado de análise de uso único e validade de dez minutos. Recalcula o hash das imagens escolhidas e da imagem preservada antes de solicitar a operação. Se conteúdo, tamanho ou data mudarem, exige nova análise.
+- MediaStore.createTrashRequest abre a confirmação do sistema. Nenhuma chamada de exclusão definitiva, MANAGE_MEDIA ou acesso irrestrito ao armazenamento.
+- Após a confirmação, consulta IS_TRASHED e separa resultados verificados de resultados desconhecidos. Cancelamento do diálogo não é relatado como sucesso. Mover para a lixeira não garante liberação imediata de espaço.
+- Fotos, nomes e miniaturas permanecem no aparelho e não são incluídos na conversa enviada ao modelo. Dados da análise ficam somente em memória da sessão.
+
+Testes adicionais: PhotoRulesTest valida seleção que preserva uma cópia, rejeição de IDs fora da análise/repetidos, limite de seleção, hash conhecido, conteúdos diferentes com mesmo tamanho, arquivo alterado, limite de leitura e cancelamento. Teste TypeScript rejeita ferramentas de exclusão/seleção emitidas pelo modelo.
+
+Aceitação no aparelho ainda pendente: duplicar uma foto de teste; analisar com acesso parcial e completo; revisar os dois nomes/miniatura; cancelar o diálogo do Android e conferir que ambas permanecem; analisar novamente e confirmar apenas a cópia; verificar a lixeira e restaurar pela galeria. Testar permissão negada, app recriado, arquivo alterado após análise e uma imagem sem duplicata. Não usar fotos únicas para o primeiro teste.

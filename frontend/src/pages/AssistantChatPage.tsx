@@ -1,3 +1,4 @@
+import { PhotoCleanup } from '../components/PhotoCleanup'
 import { SectionBanner } from '../components/Personalization'
 import { saveAIConfig, loadAIConfig, deleteAIConfig } from '../lib/ai-credentials'
 import { AI_PROVIDERS, generateAIReply, type AIProvider } from '../lib/ai-providers'
@@ -35,6 +36,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
   const [endpoint, setEndpoint] = useState(AI_PROVIDERS.gemini.endpoint)
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState('')
+  const [photosOpen, setPhotosOpen] = useState(false)
   const [pending, setPending] = useState<PendingExecution | null>(null)
   const [fileRunning, setFileRunning] = useState(false)
   const executionLock = useRef(false)
@@ -108,6 +110,11 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     finally { executionLock.current = false; setFileRunning(false); setBusy('') }
   }
   const prepareAction = async (action: PlannedAction, signal: AbortSignal) => {
+    if (action.kind === 'photos-review') {
+      if (!isAndroid) throw new Error('A limpeza de fotos está disponível no APK Android.')
+      pauseFloatingMic(); setPhotosOpen(true)
+      return 'Abri a revisão de fotos duplicadas. Toque em Autorizar e analisar fotos. Nenhuma imagem foi alterada.'
+    }
     if (action.kind === 'files') {
       if (!isAndroid) throw new Error('A organização de arquivos está disponível no APK Android.')
       if (action.operation === 'list') {
@@ -189,7 +196,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
       let toolUsed = !!action
       if (memory && user) answer = await executeMemoryCommand(memory, user.id)
       else if (action) {
-        answer = ['files', 'create-task', 'list-tasks', 'whatsapp-send'].includes(action.kind)
+        answer = ['files', 'photos-review', 'create-task', 'list-tasks', 'whatsapp-send'].includes(action.kind)
           ? await prepareAction(action as PlannedAction, controller.signal) : await executeAssistantAction(action, user?.email)
       } else {
         const decision = validateDecision(await generateAIReply({ provider, apiKey: key, model, endpoint }, history, controller.signal, context, EXECUTOR_PROMPT))
@@ -352,6 +359,8 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     <div className="flex items-center justify-between gap-3"><button type="button" onClick={() => {voiceEnabled.current = !voiceEnabled.current; setVoiceMode(voiceEnabled.current); stopVoice()}} className="flex items-center gap-2 rounded-xl border border-[#45454a] px-3 py-2 text-sm">{voiceMode ? <Volume2 size={17}/> : <VolumeX size={17}/>} {floating ? (voiceMode ? 'Voz ligada' : 'Ligar voz') : (voiceMode ? 'Respostas faladas: ativadas' : 'Ativar respostas faladas')}</button><button type="button" aria-label="Limpar conversa" disabled={!!busy} onClick={() => {setMessages([INTRO]);setError('');stopVoice()}} className="flex items-center gap-2 text-sm text-[#a3a5a9]"><Trash2 size={16}/> {floating ? 'Limpar' : 'Limpar conversa'}</button></div>
     <div aria-live="polite" className="assistant-messages flex min-h-40 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-[#34363a] bg-[#151617] p-3">{messages.map((m,i) => <div key={i} className={m.role === 'user' ? 'assistant-user-message ml-auto max-w-[90%] rounded-2xl px-4 py-3' : 'mr-auto max-w-[90%] rounded-2xl bg-[#282a2c] px-4 py-3 text-[#F1F1ED]'}><p className="whitespace-pre-wrap text-sm">{m.text}</p>{m.role === 'model' && !m.private && <button type="button" aria-label="Ouvir resposta" className="mt-2 opacity-70" onClick={() => void speak(m.text)}><Volume2 size={15}/></button>}</div>)}{busy && <p className="text-sm text-[#a3a5a9]">{busy}</p>}<div ref={bottom}/></div>
     {isAndroid && <div className="flex flex-wrap gap-2"><button type="button" disabled={!!busy || !!pending} onClick={() => void chooseFolder()} className="rounded-xl border border-[#45454a] px-3 py-2 text-sm disabled:opacity-40">Arquivos · escolher pasta</button><button type="button" disabled={!!busy || !!pending} onClick={() => void chooseFolder(true)} className="rounded-xl border border-[#45454a] px-3 py-2 text-sm disabled:opacity-40">Remover acesso</button></div>}
+    {isAndroid && <button type="button" disabled={!!busy || !!pending} onClick={() => { pauseFloatingMic(); setPhotosOpen(true) }} className="self-start rounded-xl border border-[#45454a] px-3 py-2 text-sm disabled:opacity-40">Fotos duplicadas</button>}
+    {photosOpen && <PhotoCleanup onClose={() => setPhotosOpen(false)} />}
     {pending && <section aria-label="Prévia da execução" className="rounded-xl border border-[#C5FF4A] bg-[#1d1e20] p-3"><p className="font-semibold">Revisar antes de executar</p><p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words text-sm">{pending.files ? [`Pasta: ${pending.files.folder}`, ...pending.files.steps].join('\n') : pending.action.kind === 'create-task' ? `Criar tarefa: ${pending.action.title}` : pending.action.kind === 'whatsapp-send' ? `Enviar WhatsApp para ${pending.action.phone}\n\n${pending.action.text}` : ''}</p><p className="my-2 text-xs text-[#a3a5a9]">Confira todos os itens. Cancelar durante a execução mantém as etapas já concluídas.</p><div className="flex gap-2"><button type="button" disabled={!!busy} onClick={() => void confirmPlan()} className="rounded-xl bg-[#C5FF4A] px-4 py-2 text-black">Confirmar</button><button type="button" disabled={!!busy} onClick={discardPlan} className="rounded-xl border border-[#45454a] px-4 py-2">Descartar</button></div></section>}
     {!!busy && !pending && <button type="button" onClick={() => { if (fileRunning) { void nativeFiles.cancel(); setBusy('Cancelando após a etapa atual…') } else if (request.current) { request.current.abort(); setBusy('Cancelando…') } }} disabled={!fileRunning && busy === 'Executando plano confirmado…'} className="self-start rounded-xl border border-[#45454a] px-3 py-2 text-sm">Cancelar execução</button>}
     {error && <p role="alert" className="text-sm text-[#ff8990]">{error}</p>}

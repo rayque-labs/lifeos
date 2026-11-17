@@ -56,6 +56,11 @@ update_element(service, "property", "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYP
 for permission in ("SYSTEM_ALERT_WINDOW", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_SPECIAL_USE", "FOREGROUND_SERVICE_MEDIA_PROJECTION", "RECORD_AUDIO"):
     update_element(base, "uses-permission", f"android.permission.{permission}")
 
+update_element(app, "activity", ".PhotoTrashActivity", exported="false", theme="@style/LifeOSOverlayPanel")
+for permission in ("READ_MEDIA_IMAGES", "READ_MEDIA_VISUAL_USER_SELECTED", "ACCESS_MEDIA_LOCATION"):
+    update_element(base, "uses-permission", f"android.permission.{permission}")
+update_element(base, "uses-permission", "android.permission.READ_EXTERNAL_STORAGE", maxSdkVersion="32")
+
 queries = base.find("queries")
 if queries is None:
     queries = ET.SubElement(base, "queries")

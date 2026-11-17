@@ -5,7 +5,7 @@ import { bankSnapshot, loadConnection } from './mobile-integrations'
 import type { Task } from './types'
 
 type DeviceControl = Parameters<typeof nativeAssistant.controlDevice>[0]
-export type AssistantAction = FileAction | { kind: 'whatsapp-send'; phone: string; text: string } | { kind: 'create-task'; title: string } | { kind: 'list-tasks' } | { kind: 'device'; control: DeviceControl } | { kind: 'bank-balances' } | { kind: 'screen' }
+export type AssistantAction = { kind: 'photos-review' } | FileAction | { kind: 'whatsapp-send'; phone: string; text: string } | { kind: 'create-task'; title: string } | { kind: 'list-tasks' } | { kind: 'device'; control: DeviceControl } | { kind: 'bank-balances' } | { kind: 'screen' }
 const controlledApps = 'whatsapp|chrome|agenda|calculadora|keep|instagram'
 const apps = `${controlledApps}|facebook`
 const openApp = new RegExp(`^abr(?:ir|a|e) (?:o |a )?(?:aplicativo (?:do |da )?)?(${apps})[.!?]?$`, 'i')
@@ -17,6 +17,7 @@ export const taskChangedEvent = 'lifeos:tasks-changed'
 
 export function parseAssistantAction(input: string): AssistantAction | null {
   const spoken = input.trim().replace(/^(?:(?:ei|oi)\s+)?toph[,\s]+/i, '').replace(/^(?:voc[eê] )?(?:pode|consegue)\s+/i, '').replace(/(?:,? por favor| pra mim| para mim)[.!?]?$/i, '').trim()
+  if (/^(?:analis(?:ar|e)|encontr(?:ar|e)|procur(?:ar|e)|limp(?:ar|e)) (?:as |minhas )?fotos (?:duplicadas|repetidas)[.!?]?$/i.test(spoken)) return { kind: 'photos-review' }
   const file = parseFileAction(spoken)
   if (file) return file
   input = spoken
@@ -44,6 +45,7 @@ export function parseAssistantAction(input: string): AssistantAction | null {
 }
 
 export async function executeAssistantAction(action: AssistantAction, user?: string) {
+  if (action.kind === 'photos-review') throw new Error('Abra o painel Fotos duplicadas para analisar e revisar.')
   if (action.kind === 'files' || action.kind === 'whatsapp-send') throw new Error('Esta ação precisa passar pelo executor com prévia.')
   if (action.kind === 'screen') {
     if (!isAndroid) throw new Error('A leitura da tela está disponível no app Android.')
