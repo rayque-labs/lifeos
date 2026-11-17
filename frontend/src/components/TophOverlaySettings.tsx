@@ -4,13 +4,14 @@ import { Button, Card } from './ui'
 
 export function TophOverlaySettings() {
   const [status, setStatus] = useState<Awaited<ReturnType<typeof nativeAssistant.getOverlayStatus>> | null>(null)
+  const [controlEnabled, setControlEnabled] = useState(false)
   const [voice, setVoice] = useState(true)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
     if (!isAndroid) return
-    const refresh = () => { void nativeAssistant.getOverlayStatus().then(setStatus).catch(() => {}) }
+    const refresh = () => { void nativeAssistant.getOverlayStatus().then(setStatus).catch(() => {}); void nativeAssistant.getScreenControlStatus().then(s => setControlEnabled(s.enabled)).catch(() => {}) }
     refresh()
     window.addEventListener('focus', refresh)
     document.addEventListener('visibilitychange', refresh)
@@ -65,6 +66,7 @@ export function TophOverlaySettings() {
         <Button disabled={busy} onClick={() => void toggle()}>{status?.running ? 'Encerrar Toph flutuante' : 'Ativar Toph flutuante'}</Button>
         <Button variant="secondary" disabled={busy} onClick={() => void configure()}>Assistente padrão do Android</Button>
       </div>
+      <div className="space-y-2 border-t border-[#45454a] pt-3"><h3 className="font-semibold">Execução assistida na tela</h3><p className="text-sm opacity-75">{controlEnabled ? 'Serviço ativado no Android.' : 'Ativação manual necessária em Acessibilidade.'} Identifica controles e permite tocar, digitar e rolar após você revisar cada ação.</p><p className="text-xs opacity-70">A leitura só acontece quando solicitada. Para planejar com IA, o painel pede autorização para enviar o texto observado ao seu provedor. Você pode desativar o serviço a qualquer momento.</p><Button variant="secondary" onClick={() => void nativeAssistant.openScreenControlSettings().catch(() => setNotice('Abra Acessibilidade nas configurações do Android.'))}>Configurar execução assistida</Button></div>
       {notice && <p role="status" className="text-sm">{notice}</p>}
     </Card>
   </div>

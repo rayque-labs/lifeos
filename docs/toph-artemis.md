@@ -69,13 +69,13 @@ versão conectada ao servidor pede abrir chat autenticado.
 
 ## Limites ainda não implementados
 
-- Controle geral de outros apps (toque, digitação, rolagem com observação fresca)
-  não foi adicionado. O APK atual não declara AccessibilityService. Leitura OCR
-  com MediaProjection e abertura de apps não equivalem a operar sua interface.
+- A etapa seguinte adiciona execução guiada por AccessibilityService, com ativação
+  manual e revisão de cada ação. Não é controle autônomo irrestrito nem análise
+  visual por pixels; controles ausentes na árvore não podem ser acionados.
 - ARTEMIS original usa host com Python/ADB e helper. Não foi instalado no Termux
   nem incorporado ao APK; compatibilidade no Moto G34 não foi comprovada.
-- Não existe loop geral autônomo planear/observar/agir/verificar entre apps.
-  A adaptação aqui é a fundação persistente, propostas e registros de resultados.
+- Não existe loop geral autônomo entre apps. O executor guiado observa, propõe
+  uma ação, aguarda confirmação, executa e observa novamente; até 8 ações/sessão.
 - Integrações OAuth Drive/Gmail/Notion/Spotify continuam não implementadas.
 
 ## Validação

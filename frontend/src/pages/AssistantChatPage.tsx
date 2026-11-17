@@ -1,3 +1,4 @@
+import { ScreenExecutor } from '../components/ScreenExecutor'
 import { useConversation } from '../hooks/useConversation'
 import { conversationContext, type ChatMessage } from '../lib/conversation-store'
 import { researchWeb, supportsResearch, type ResearchResult } from '../lib/web-research'
@@ -39,6 +40,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
   const [endpoint, setEndpoint] = useState(AI_PROVIDERS.gemini.endpoint)
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState('')
+  const [screenGoal, setScreenGoal] = useState<string | null>(null)
   const [photosOpen, setPhotosOpen] = useState(false)
   const [pending, setPending] = useState<PendingExecution | null>(null)
   const [fileRunning, setFileRunning] = useState(false)
@@ -113,6 +115,11 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     finally { executionLock.current = false; setFileRunning(false); setBusy('') }
   }
   const prepareAction = async (action: PlannedAction, signal: AbortSignal) => {
+    if (action.kind === 'screen-task') {
+      if (!floating || !isAndroid) return 'Abra o app desejado, toque na Toph flutuante e use Executar na tela. A execução precisa acontecer no painel sobre o app.'
+      pauseFloatingMic(); setScreenGoal(action.goal)
+      return 'Abri o executor de tela. Leia os controles, autorize a análise e revise cada ação antes de executar.'
+    }
     if (action.kind === 'photos-review') {
       if (!isAndroid) throw new Error('A limpeza de fotos está disponível no APK Android.')
       pauseFloatingMic(); setPhotosOpen(true)
@@ -166,7 +173,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
   }
   const send = async (override?: string) => {
     const text = (override ?? draft).trim()
-    if (!text || request.current || executionLock.current || !loaded || !historyReady) return
+    if (!text || request.current || executionLock.current || screenGoal !== null || !loaded || !historyReady) return
     if (pending) { setError('Confirme ou descarte o plano atual antes de fazer outro pedido.'); return }
     if (!user) { setError('Entre na sua conta para usar a Toph.'); return }
     const memory = parseMemoryCommand(text)
@@ -210,7 +217,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
       else if (action?.kind === 'web-search') { answer = await runResearch(action.query) }
       else if (action) {
         proposed = action.kind === 'files' && action.operation !== 'list' || action.kind === 'create-task' || action.kind === 'whatsapp-send'
-        answer = ['files', 'photos-review', 'create-task', 'list-tasks', 'whatsapp-send'].includes(action.kind)
+        answer = ['screen-task', 'files', 'photos-review', 'create-task', 'list-tasks', 'whatsapp-send'].includes(action.kind)
           ? await prepareAction(action as PlannedAction, controller.signal) : await executeAssistantAction(action, user?.email)
       } else {
         const decision = validateDecision(await generateAIReply({ provider, apiKey: key, model, endpoint }, history, controller.signal, context, EXECUTOR_PROMPT))
@@ -378,6 +385,8 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     <div aria-live="polite" className="assistant-messages flex min-h-40 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-[#34363a] bg-[#151617] p-3">{messages.map((m) => <div key={m.id} className={m.role === 'user' ? 'assistant-user-message ml-auto max-w-[90%] rounded-2xl px-4 py-3' : 'mr-auto max-w-[90%] rounded-2xl bg-[#282a2c] px-4 py-3 text-[#F1F1ED]'}>{m.phase && <p className="mb-1 text-xs text-[#C5FF4A]">{m.phase === 'proposal' ? 'Proposta · exige confirmação nesta sessão' : m.phase === 'error' ? 'Etapa interrompida' : 'Retorno da ferramenta'}</p>}<p className="whitespace-pre-wrap text-sm">{m.text}</p>{m.sources?.length ? <ul className="mt-2 text-xs">{m.sources.map(source => <li key={source.url}><a href={source.url} target="_blank" rel="noopener noreferrer" className="underline text-[#C5FF4A]" onClick={event => { if (isAndroid) { event.preventDefault(); void nativeAssistant.openExternal({ url: source.url }).catch(() => setError('Não foi possível abrir a fonte.')) } }}>{source.title}</a></li>)}</ul> : null}{m.searchHtml && <iframe title="Sugestões da Pesquisa Google" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer" srcDoc={m.searchHtml} className="mt-2 h-32 w-full border-0"/>}{m.role === 'model' && !m.private && <button type="button" aria-label="Ouvir resposta" className="mt-2 opacity-70" onClick={() => void speak(m.text)}><Volume2 size={15}/></button>}</div>)}{busy && <p className="text-sm text-[#a3a5a9]">{busy}</p>}<div ref={bottom}/></div>
     {isAndroid && <div className="flex flex-wrap gap-2"><button type="button" disabled={!!busy || !!pending} onClick={() => void chooseFolder()} className="rounded-xl border border-[#45454a] px-3 py-2 text-sm disabled:opacity-40">Arquivos · escolher pasta</button><button type="button" disabled={!!busy || !!pending} onClick={() => void chooseFolder(true)} className="rounded-xl border border-[#45454a] px-3 py-2 text-sm disabled:opacity-40">Remover acesso</button></div>}
     {isAndroid && <button type="button" disabled={!!busy || !!pending} onClick={() => { pauseFloatingMic(); setPhotosOpen(true) }} className="self-start rounded-xl border border-[#45454a] px-3 py-2 text-sm disabled:opacity-40">Fotos duplicadas</button>}
+    {floating && isAndroid && <button type="button" disabled={!!busy || !!pending || screenGoal !== null} onClick={() => { pauseFloatingMic(); setScreenGoal('') }} className="self-start rounded-xl border border-[#C5FF4A] px-3 py-2 text-sm">Executar na tela</button>}
+    {screenGoal !== null && <ScreenExecutor initialGoal={screenGoal} onClose={() => setScreenGoal(null)} onJournal={addResult} />}
     {photosOpen && <PhotoCleanup onClose={() => setPhotosOpen(false)} />}
     {!pending && messages.at(-1)?.phase === 'proposal' && <p className="text-xs text-[#a3a5a9]">Essa prévia pertence à sessão anterior. Peça novamente para conferir o estado atual antes de executar.</p>}
     {pending && <section aria-label="Prévia da execução" className="rounded-xl border border-[#C5FF4A] bg-[#1d1e20] p-3"><p className="font-semibold">Revisar antes de executar</p><p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words text-sm">{pending.files ? [`Pasta: ${pending.files.folder}`, ...pending.files.steps].join('\n') : pending.action.kind === 'create-task' ? `Criar tarefa: ${pending.action.title}` : pending.action.kind === 'whatsapp-send' ? `Enviar WhatsApp para ${pending.action.phone}\n\n${pending.action.text}` : ''}</p><p className="my-2 text-xs text-[#a3a5a9]">Confira todos os itens. Cancelar durante a execução mantém as etapas já concluídas.</p><div className="flex gap-2"><button type="button" disabled={!!busy} onClick={() => void confirmPlan()} className="rounded-xl bg-[#C5FF4A] px-4 py-2 text-black">Confirmar</button><button type="button" disabled={!!busy} onClick={discardPlan} className="rounded-xl border border-[#45454a] px-4 py-2">Descartar</button></div></section>}
@@ -388,7 +397,7 @@ export function AssistantChatPage({ floating = false }: { floating?: boolean }) 
     {floating && isAndroid && <button type="button" disabled={!!busy || !loaded} onClick={() => { pauseFloatingMic(); void send('analisar a tela') }} className="self-start rounded-xl border border-[#45454a] px-3 py-2 text-sm">Ler tela</button>}
     <p className="text-xs text-[#a3a5a9]">{supportsResearch({ provider, apiKey: key, model, endpoint }) ? 'Pesquisa no chat disponível: diga “pesquise…”; usa a cota do seu provedor.' : 'Pesquisa no chat: selecione Gemini ou Groq GPT-OSS. “No Chrome” apenas abre o navegador.'}</p>
     {!floating && <p className="text-xs text-[#a3a5a9]">Diga “Lembre que…” para guardar algo, “O que você lembra?” para ver e “Limpar memória” para apagar tudo. Algumas notas podem ser usadas nas respostas do provedor de IA configurado.</p>}
-    <form onSubmit={e => {e.preventDefault();void send()}} className="flex gap-2"><button type="button" aria-label={listening ? 'Parar microfone' : 'Ativar microfone'} disabled={!!pending || !!busy || (isAndroid && listening && !floating)} onClick={togglePanelMic} className="rounded-xl border border-[#45454a] p-3">{listening ? <MicOff size={20} className="text-[#C5FF4A]"/> : <Mic size={20}/>}</button><input aria-label="Mensagem" onFocus={pauseFloatingMic} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Converse com a assistente…" className="min-w-0 flex-1 rounded-xl border border-[#45454a] bg-[#242628] p-3 text-white"/><button type="submit" disabled={!!busy || !!pending || !loaded || !historyReady || !draft.trim()} aria-label="Enviar mensagem" className="rounded-xl bg-[#C5FF4A] p-3 text-[#101010] disabled:opacity-40"><Send size={20}/></button></form>
+    <form onSubmit={e => {e.preventDefault();void send()}} className="flex gap-2"><button type="button" aria-label={listening ? 'Parar microfone' : 'Ativar microfone'} disabled={screenGoal !== null || !!pending || !!busy || (isAndroid && listening && !floating)} onClick={togglePanelMic} className="rounded-xl border border-[#45454a] p-3">{listening ? <MicOff size={20} className="text-[#C5FF4A]"/> : <Mic size={20}/>}</button><input aria-label="Mensagem" onFocus={pauseFloatingMic} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Converse com a assistente…" className="min-w-0 flex-1 rounded-xl border border-[#45454a] bg-[#242628] p-3 text-white"/><button type="submit" disabled={screenGoal !== null || !!busy || !!pending || !loaded || !historyReady || !draft.trim()} aria-label="Enviar mensagem" className="rounded-xl bg-[#C5FF4A] p-3 text-[#101010] disabled:opacity-40"><Send size={20}/></button></form>
     <p className="text-xs text-[#9a9da0]">{floating ? (listening ? 'Ouvindo…' : voicePaused ? 'Microfone pausado. Toque para voltar a ouvir.' : 'Preparando a Toph…') : 'Toque no microfone para ditar.'} {!floating && <Link to="/settings" className="mono-accent underline">Configurar voz e assistente</Link>}</p>
   </div>
 }

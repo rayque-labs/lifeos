@@ -1,6 +1,12 @@
+import type { ScreenSnapshot } from './screen-executor'
 import { Capacitor, registerPlugin } from '@capacitor/core'
 
 interface NativeAssistantPlugin {
+  getScreenControlStatus(): Promise<{ enabled: boolean }>
+  openScreenControlSettings(): Promise<void>
+  observeInterface(): Promise<ScreenSnapshot>
+  discardInterface(): Promise<void>
+  executeInterfaceAction(options: { token: string; target: string; action: string; text?: string }): Promise<{ accepted: boolean; valueVerified?: boolean; changed?: boolean; after?: ScreenSnapshot; verificationError?: string }>
   getPanelMode(): Promise<{ external: boolean }>
   getOverlayStatus(): Promise<{ defaultAssistant: boolean; allowed: boolean; running: boolean; voiceSession?: boolean }>
   toggleOverlay(options?: { voice: boolean }): Promise<{ state: 'started' | 'stopped' | 'permission' }>

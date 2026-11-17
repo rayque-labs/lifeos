@@ -1,4 +1,4 @@
-name: Android diagnostic APK (minimal permissions)
+name: Android APK (guided screen executor)
 
 on:
   workflow_dispatch:
@@ -57,6 +57,8 @@ jobs:
           java -cp /tmp/lifeos-file-tests com.rayquelabs.lifeos.FileRulesTest
           javac -d /tmp/lifeos-file-tests native-android/PhotoRules.java native-android/tests/PhotoRulesTest.java
           java -cp /tmp/lifeos-file-tests com.rayquelabs.lifeos.PhotoRulesTest
+          javac -d /tmp/lifeos-file-tests native-android/ScreenActionRules.java native-android/tests/ScreenActionRulesTest.java
+          java -cp /tmp/lifeos-file-tests com.rayquelabs.lifeos.ScreenActionRulesTest
       - name: Build offline web app
         env:
           VITE_OFFLINE_MODE: 'true'
@@ -99,7 +101,16 @@ jobs:
               except ET.ParseError as error:
                   print(f'::error file={p}::Invalid XML: {error}')
                   raise
-          print('All generated Android XML files parsed successfully')
+          tree = ET.parse(base/'AndroidManifest.xml').getroot()
+          ns = '{http://schemas.android.com/apk/res/android}'
+          services = [s for s in tree.findall('application/service') if s.get(ns+'permission') == 'android.permission.BIND_ACCESSIBILITY_SERVICE']
+          assert len(services) == 1 and services[0].get(ns+'name') == '.TophAccessibilityService'
+          assert services[0].get(ns+'exported') == 'true'
+          config = ET.parse(base/'res/xml/toph_accessibility.xml').getroot()
+          assert config.get(ns+'canRetrieveWindowContent') == 'true'
+          assert config.get(ns+'isAccessibilityTool') == 'false'
+          assert config.get(ns+'canPerformGestures') != 'true'
+          print('All generated Android XML and explicit accessibility component verified')
           PY
       - name: Preflight native resources and plugin registration
         run: |
@@ -146,7 +157,7 @@ jobs:
           "$build_tools/apksigner" verify --verbose "$apk"
           "$build_tools/aapt" dump badging "$apk" | grep "^package: name='com.rayquelabs.lifeos'"
           "$build_tools/aapt" dump xmltree "$apk" AndroidManifest.xml > /tmp/lifeos-packaged-manifest.txt
-          if grep -Eq 'BIND_ACCESSIBILITY_SERVICE|android.accessibilityservice.AccessibilityService|BIND_NOTIFICATION_LISTENER_SERVICE|android.permission.(READ_SMS|RECEIVE_SMS)' /tmp/lifeos-packaged-manifest.txt; then
+          if grep -Eq 'BIND_NOTIFICATION_LISTENER_SERVICE|android.permission.(READ_SMS|RECEIVE_SMS)' /tmp/lifeos-packaged-manifest.txt; then
             echo '::error::The APK declares a restricted service or SMS permission.'
             exit 1
           fi
@@ -164,7 +175,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: lifeos-diagnostic-minimal-apk
+          name: lifeos-guided-screen-apk
           path: |
             frontend/android/app/build/outputs/apk/debug/app-debug.apk
             frontend/android/app/build/outputs/apk/debug/app-debug.apk.sha256

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeViewFocused"
+    android:description="@string/toph_control_description"
+    android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagRetrieveInteractiveWindows"
-    android:canPerformGestures="true"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows|flagReportViewIds"
     android:canRetrieveWindowContent="true"
-    android:packageNames="com.whatsapp,com.whatsapp.w4b,com.android.chrome,com.instagram.android,com.google.android.calendar,com.google.android.calculator,com.google.android.keep"
+    android:isAccessibilityTool="false"
     android:notificationTimeout="100" />

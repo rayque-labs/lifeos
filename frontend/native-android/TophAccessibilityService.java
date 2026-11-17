@@ -1,187 +1,158 @@
 package com.rayquelabs.lifeos;
 
 import android.accessibilityservice.AccessibilityService;
-import android.accessibilityservice.GestureDescription;
-import android.graphics.Path;
+import android.app.KeyguardManager;
 import android.graphics.Rect;
 import android.os.Bundle;
-import android.text.TextUtils;
+import android.os.SystemClock;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
-import java.util.ArrayDeque;
-import java.util.LinkedHashSet;
-import java.util.Locale;
-import android.widget.Toast;
+import com.getcapacitor.JSArray;
+import com.getcapacitor.JSObject;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
+/** Only explicit observations and one-shot, confirmed semantic actions. No background collection. */
 public class TophAccessibilityService extends AccessibilityService {
-    static TophAccessibilityService connected;
-
-    @Override
-    protected void onServiceConnected() { connected = this; }
-
-    @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {}
-
-    @Override
-    public void onInterrupt() {}
-
-    @Override
-    public void onDestroy() {
-        if (connected == this) connected = null;
-        super.onDestroy();
+    static volatile TophAccessibilityService connected;
+    private Snapshot last;
+    private boolean acting;
+    private static final int MAX_NODES = 350;
+    private static final int MAX_ELEMENTS = 70;
+    private static final class Element {
+        String id, label, path, resource;
+        boolean click, edit, scroll;
+        Rect bounds;
+        JSObject json() { return new JSObject().put("id", id).put("label", label).put("click", click).put("edit", edit).put("scroll", scroll); }
     }
-
-    private String supportedApp(CharSequence packageName) {
-        String name = String.valueOf(packageName);
-        if ("com.android.chrome".equals(name)) return "Chrome";
-        if ("com.instagram.android".equals(name)) return "Instagram";
-        if ("com.whatsapp".equals(name) || "com.whatsapp.w4b".equals(name)) return "WhatsApp";
-        if ("com.google.android.calendar".equals(name)) return "Agenda";
-        if ("com.google.android.calculator".equals(name)) return "Calculadora";
-        if ("com.google.android.keep".equals(name)) return "Keep";
-        return null;
+    private static final class Snapshot {
+        String token, app, fingerprint;
+        long created;
+        boolean truncated;
+        List<Element> elements = new ArrayList<>();
+        JSObject json() {
+            JSArray items = new JSArray();
+            for (Element e : elements) items.put(e.json());
+            return new JSObject().put("token", token).put("app", app).put("fingerprint", fingerprint).put("elements", items).put("truncated", truncated);
+        }
     }
-
-    String describeScreen() {
-        AccessibilityNodeInfo root = null;
-        for (AccessibilityWindowInfo window : getWindows()) {
+    @Override protected void onServiceConnected() { connected = this; }
+    @Override public void onAccessibilityEvent(AccessibilityEvent event) { }
+    @Override public void onInterrupt() { last = null; }
+    @Override public void onDestroy() { last = null; if (connected == this) connected = null; super.onDestroy(); }
+    private boolean supported(String name) { return ScreenActionRules.supported(name); }
+    private AccessibilityNodeInfo externalRoot() {
+        if (getSystemService(KeyguardManager.class).isKeyguardLocked()) throw new IllegalStateException("Desbloqueie a tela primeiro.");
+        List<AccessibilityWindowInfo> windows = new ArrayList<>(getWindows());
+        windows.sort((a, b) -> Integer.compare(b.getLayer(), a.getLayer()));
+        for (AccessibilityWindowInfo window : windows) {
+            if (window.getType() == AccessibilityWindowInfo.TYPE_SYSTEM && window.isFocused()) throw new IllegalStateException("Feche a janela do sistema antes de continuar.");
             if (window.getType() != AccessibilityWindowInfo.TYPE_APPLICATION) continue;
-            AccessibilityNodeInfo candidate = window.getRoot();
-            if (candidate == null) break;
-            if (getPackageName().contentEquals(String.valueOf(candidate.getPackageName()))) continue;
-            root = candidate;
-            break;
+            AccessibilityNodeInfo root = window.getRoot();
+            if (root == null) continue;
+            String name = String.valueOf(root.getPackageName());
+            if (getPackageName().equals(name)) { root.recycle(); continue; }
+            if (!supported(name)) { root.recycle(); throw new IllegalStateException("Este aplicativo não está habilitado no executor. Abra Chrome, Instagram, Facebook, WhatsApp, Spotify, Keep, Agenda ou Calculadora."); }
+            return root;
         }
-        if (root == null) {
-            AccessibilityNodeInfo active = getRootInActiveWindow();
-            if (active != null && !getPackageName().contentEquals(String.valueOf(active.getPackageName()))) root = active;
-        }
-        if (root == null) return null;
-        String app = supportedApp(root.getPackageName());
-        if (app == null) throw new IllegalStateException("A leitura da tela não está habilitada para esse aplicativo.");
-        LinkedHashSet<String> texts = new LinkedHashSet<>();
-        LinkedHashSet<String> controls = new LinkedHashSet<>();
-        int visited = 0;
-        ArrayDeque<AccessibilityNodeInfo> nodes = new ArrayDeque<>();
-        nodes.add(root);
-        while (!nodes.isEmpty() && visited++ < 450 && (texts.size() < 12 || controls.size() < 8)) {
-            AccessibilityNodeInfo node = nodes.removeFirst();
-            if (!node.isVisibleToUser() || node.isPassword() || node.isEditable() ||
-                !String.valueOf(root.getPackageName()).contentEquals(String.valueOf(node.getPackageName()))) continue;
-            String label = nodeLabel(node);
-            if (!label.isEmpty()) {
-                if (node.isClickable() && controls.size() < 8) controls.add(label);
-                else if (!node.isClickable() && texts.size() < 12) texts.add(label);
-            }
-            for (int i = 0; i < node.getChildCount() && nodes.size() < 450; i++) {
-                AccessibilityNodeInfo child = node.getChild(i);
-                if (child != null) nodes.addLast(child);
-            }
-        }
-        texts.removeAll(controls);
-        String result = "Tela do " + app;
-        if (!texts.isEmpty()) result += "\n\nTextos visíveis\n• " + TextUtils.join("\n• ", texts);
-        if (!controls.isEmpty()) result += "\n\nElementos acionáveis\n• " + TextUtils.join("\n• ", controls);
-        if (texts.isEmpty() && controls.isEmpty()) result += "\n\nO app não disponibilizou texto legível para esta tela.";
-        return result;
+        throw new IllegalStateException("Abra o aplicativo desejado e depois toque na Toph flutuante para observar a tela.");
     }
-
-    private String nodeLabel(AccessibilityNodeInfo node) {
-        CharSequence raw = node.getText();
-        if (raw == null || raw.length() == 0) raw = node.getContentDescription();
-        if (raw == null) return "";
-        String value = raw.subSequence(0, Math.min(raw.length(), 160)).toString().replaceAll("\\s+", " ").trim();
-        return value;
-    }
-
-    boolean targetFocused(String target) {
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        return root != null && target.contentEquals(String.valueOf(root.getPackageName()));
-    }
-
-    private void clickLabel(AccessibilityNodeInfo root, String text) {
-        String label = text.trim().toLowerCase(Locale.ROOT);
-        LinkedHashSet<AccessibilityNodeInfo> matches = new LinkedHashSet<>();
-        ArrayDeque<AccessibilityNodeInfo> nodes = new ArrayDeque<>();
-        nodes.add(root);
-        int visited = 0;
-        while (!nodes.isEmpty() && visited++ < 500) {
-            AccessibilityNodeInfo node = nodes.removeFirst();
-            if (!node.isVisibleToUser() || node.isPassword() || node.isEditable() ||
-                !String.valueOf(root.getPackageName()).contentEquals(String.valueOf(node.getPackageName()))) continue;
-            if (nodeLabel(node).toLowerCase(Locale.ROOT).equals(label)) {
-                AccessibilityNodeInfo button = node;
-                for (int step = 0; button != null && step < 5; step++, button = button.getParent()) {
-                    if (!String.valueOf(root.getPackageName()).contentEquals(String.valueOf(button.getPackageName()))) break;
-                    if (button.isClickable() && button.isEnabled() && button.isVisibleToUser() && !button.isEditable()) {
-                        matches.add(button);
-                        break;
-                    }
-                }
-                if (matches.size() > 1) break;
-            }
-            for (int i = 0; i < node.getChildCount() && nodes.size() < 500; i++) {
-                AccessibilityNodeInfo child = node.getChild(i);
-                if (child != null) nodes.addLast(child);
-            }
+    private String label(AccessibilityNodeInfo node) {
+        if (node.isEditable()) {
+            CharSequence hint = android.os.Build.VERSION.SDK_INT >= 26 ? node.getHintText() : null;
+            return hint == null ? "Campo de texto (conteúdo oculto)" : hint.toString().substring(0, Math.min(120, hint.length()));
         }
-        if (matches.size() != 1) {
-            notice(matches.isEmpty() ? "Não encontrei esse botão na tela." : "Há mais de um botão com esse nome.");
-        } else if (matches.iterator().next().performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-            notice("Elemento acionado.");
-        } else {
-            notice("O aplicativo recusou o toque.");
+        CharSequence value = node.getText();
+        if (value == null || value.length() == 0) value = node.getContentDescription();
+        return value == null ? "" : value.toString().replaceAll("\\s+", " ").trim().substring(0, Math.min(120, value.toString().replaceAll("\\s+", " ").trim().length()));
+    }
+    private void walk(AccessibilityNodeInfo node, String path, Snapshot snapshot, StringBuilder signature, int[] visited) {
+        if (++visited[0] > MAX_NODES) { snapshot.truncated = true; return; }
+        if (!node.isVisibleToUser()) return;
+        if (node.isPassword()) throw new IllegalStateException("Tela com senha: preencha manualmente e saia desta tela antes de usar o executor.");
+        if (!snapshot.app.equals(String.valueOf(node.getPackageName()))) return;
+        Rect bounds = new Rect(); node.getBoundsInScreen(bounds);
+        String title = label(node);
+        String resource = String.valueOf(node.getViewIdResourceName());
+        CharSequence content = node.getText();
+        String boundedContent = content == null ? "" : content.subSequence(0, Math.min(2000, content.length())).toString();
+        // Hash values locally to invalidate stale editable nodes; never include them in the returned snapshot.
+        signature.append(path).append('|').append(resource).append('|').append(title).append('|').append(bounds.toShortString())
+            .append('|').append(node.isEnabled()).append('|').append(node.isChecked()).append('|').append(boundedContent).append('\n');
+        boolean click = node.isEnabled() && node.isClickable();
+        boolean edit = node.isEnabled() && node.isEditable();
+        boolean scroll = node.isEnabled() && node.isScrollable();
+        if ((!title.isEmpty() || click || edit || scroll) && snapshot.elements.size() < MAX_ELEMENTS) {
+            Element e = new Element(); e.id = "e" + snapshot.elements.size(); e.label = title.isEmpty() ? "Controle sem rótulo" : title;
+            e.path = path; e.resource = resource; e.bounds = bounds; e.click = click; e.edit = edit; e.scroll = scroll;
+            snapshot.elements.add(e);
+        } else if (snapshot.elements.size() >= MAX_ELEMENTS) snapshot.truncated = true;
+        for (int i = 0; i < node.getChildCount() && visited[0] <= MAX_NODES; i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child == null) continue;
+            try { walk(child, path + "/" + i, snapshot, signature, visited); } finally { child.recycle(); }
         }
     }
-
-    void perform(String target, String action, String text, int x, int y) {
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null || !target.equals(String.valueOf(root.getPackageName()))) {
-            notice("Abra o aplicativo solicitado e tente novamente.");
-            return;
-        }
-        if ("click".equals(action)) {
-            clickLabel(root, text);
-            return;
-        }
-        if ("type".equals(action)) {
-            AccessibilityNodeInfo field = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
-            if (field == null || field.isPassword() || !field.isEditable() ||
-                !target.equals(String.valueOf(field.getPackageName()))) {
-                notice("Toque em um campo de texto desse aplicativo primeiro.");
-                return;
-            }
-            Bundle args = new Bundle();
-            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
-            notice(field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args) ? "Texto inserido." : "O aplicativo recusou a digitação.");
-            return;
-        }
-        Rect bounds = new Rect();
-        root.getBoundsInScreen(bounds);
-        if (bounds.isEmpty()) {
-            notice("A área do aplicativo está indisponível.");
-            return;
-        }
-        int width = bounds.width();
-        int height = bounds.height();
-        Path path = new Path();
-        boolean tap = "tap".equals(action);
-        if (tap) {
-            path.moveTo(bounds.left + (width - 1) * x / 100f, bounds.top + (height - 1) * y / 100f);
-        } else {
-            boolean down = "down".equals(action);
-            path.moveTo(bounds.left + width * .5f, bounds.top + height * (down ? .74f : .3f));
-            path.lineTo(bounds.left + width * .5f, bounds.top + height * (down ? .3f : .74f));
-        }
-        GestureDescription gesture = new GestureDescription.Builder()
-            .addStroke(new GestureDescription.StrokeDescription(path, 0, tap ? 65 : 380)).build();
-        GestureResultCallback callback = new GestureResultCallback() {
-            @Override public void onCompleted(GestureDescription value) { notice("Gesto concluído."); }
-            @Override public void onCancelled(GestureDescription value) { notice("O gesto foi interrompido."); }
-        };
-        if (!dispatchGesture(gesture, callback, null)) notice("O Android recusou o gesto.");
+    private Snapshot snapshot() {
+        AccessibilityNodeInfo root = externalRoot();
+        try {
+            Snapshot snapshot = new Snapshot(); snapshot.app = String.valueOf(root.getPackageName());
+            snapshot.token = UUID.randomUUID().toString(); snapshot.created = SystemClock.elapsedRealtime();
+            StringBuilder signature = new StringBuilder(snapshot.app).append(root.getWindowId());
+            walk(root, "", snapshot, signature, new int[]{0});
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(signature.toString().getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(); for (byte b : hash) hex.append(String.format("%02x", b));
+            snapshot.fingerprint = hex.toString(); return snapshot;
+        } catch (RuntimeException e) { throw e; }
+        catch (Exception e) { throw new IllegalStateException("Não consegui conferir a tela."); }
+        finally { root.recycle(); }
     }
-
-    void notice(String text) { Toast.makeText(this, text, Toast.LENGTH_SHORT).show(); }
+    JSObject observe() {
+        if (acting) throw new IllegalStateException("Aguarde a ação em andamento.");
+        last = null;
+        last = snapshot();
+        return last.json();
+    }
+    void discard() { last = null; }
+    JSObject act(String token, String id, String action, String text) {
+        if (acting) throw new IllegalStateException("Já há uma ação em andamento.");
+        Snapshot original = last; last = null; // Consume even failed attempts; never replay a tap.
+        if (original == null || !original.token.equals(token)) throw new IllegalStateException("Prévia expirada. Observe a tela novamente.");
+        ScreenActionRules.checkFresh(original.created, SystemClock.elapsedRealtime());
+        Element target = null;
+        for (Element e : original.elements) if (e.id.equals(id)) target = e;
+        if (target == null) throw new IllegalStateException("Elemento não observado.");
+        ScreenActionRules.checkAction(action, text, target.click, target.edit, target.scroll);
+        Snapshot fresh = snapshot();
+        if (!original.app.equals(fresh.app) || !original.fingerprint.equals(fresh.fingerprint)) throw new IllegalStateException("A tela mudou desde a proposta. Observe novamente para evitar tocar no lugar errado.");
+        AccessibilityNodeInfo root = externalRoot();
+        AccessibilityNodeInfo node = root;
+        acting = true;
+        try {
+            for (String part : target.path.split("/")) {
+                if (part.isEmpty()) continue;
+                AccessibilityNodeInfo child = node.getChild(Integer.parseInt(part));
+                if (node != root) node.recycle();
+                node = child;
+                if (node == null) throw new IllegalStateException("O elemento desapareceu.");
+            }
+            Rect actual = new Rect(); node.getBoundsInScreen(actual);
+            if (!node.isVisibleToUser() || !node.isEnabled() || node.isPassword() || !original.app.equals(String.valueOf(node.getPackageName())) || !actual.equals(target.bounds)
+                || !String.valueOf(node.getViewIdResourceName()).equals(target.resource) || !(label(node).isEmpty() ? "Controle sem rótulo" : label(node)).equals(target.label)) throw new IllegalStateException("O elemento mudou. Observe novamente.");
+            ScreenActionRules.checkAction(action, text, node.isClickable(), node.isEditable(), node.isScrollable());
+            boolean accepted;
+            if ("type".equals(action)) {
+                Bundle args = new Bundle(); args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
+                accepted = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            } else accepted = node.performAction("click".equals(action) ? AccessibilityNodeInfo.ACTION_CLICK : "scroll-down".equals(action) ? AccessibilityNodeInfo.ACTION_SCROLL_FORWARD : AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
+            if (!accepted) throw new IllegalStateException("O aplicativo recusou a ação. Nenhuma repetição automática foi feita.");
+            JSObject receipt = new JSObject().put("accepted", true).put("app", original.app).put("before", original.fingerprint);
+            if ("type".equals(action)) receipt.put("valueVerified", node.refresh() && text.contentEquals(node.getText() == null ? "" : node.getText()));
+            return receipt;
+        } finally { if (node != null && node != root) node.recycle(); root.recycle(); acting = false; }
+    }
 }

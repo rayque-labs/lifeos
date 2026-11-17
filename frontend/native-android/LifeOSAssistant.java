@@ -158,6 +158,7 @@ public class LifeOSAssistant extends Plugin {
             return getContext().getPackageManager().getLaunchIntentForPackage("com.whatsapp") != null
                 ? "com.whatsapp" : "com.whatsapp.w4b";
         }
+        if ("spotify".equals(name)) return "com.spotify.music";
         if ("instagram".equals(name)) return "com.instagram.android";
         if ("facebook".equals(name)) {
             return getContext().getPackageManager().getLaunchIntentForPackage("com.facebook.katana") != null
@@ -169,6 +170,63 @@ public class LifeOSAssistant extends Plugin {
         if ("keep".equals(name)) return "com.google.android.keep";
         return null;
     }
+
+    private boolean screenControlBusy;
+
+    @PluginMethod
+    public void getScreenControlStatus(PluginCall call) {
+        call.resolve(new JSObject().put("enabled", TophAccessibilityService.connected != null));
+    }
+    @PluginMethod
+    public void openScreenControlSettings(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try { getActivity().startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); call.resolve(); }
+            catch (RuntimeException e) { call.reject("Não consegui abrir Acessibilidade."); }
+        });
+    }
+    @PluginMethod
+    public void discardInterface(PluginCall call) {
+        getActivity().runOnUiThread(() -> { if (TophAccessibilityService.connected != null) TophAccessibilityService.connected.discard(); call.resolve(); });
+    }
+    private void withExternalScreen(PluginCall call, boolean execute) {
+        Activity activity = getActivity();
+        activity.runOnUiThread(() -> {
+            TophAccessibilityService service = TophAccessibilityService.connected;
+            if (!(activity instanceof AssistantConversationActivity)) { call.reject("Use o executor na Toph flutuante, sobre o aplicativo desejado."); return; }
+            if (service == null) { call.reject("Ative Toph · Execução assistida em Acessibilidade primeiro."); return; }
+            if (screenControlBusy) { call.reject("Aguarde a etapa atual."); return; }
+            screenControlBusy = true;
+            android.view.WindowManager.LayoutParams before = new android.view.WindowManager.LayoutParams();
+            before.copyFrom(activity.getWindow().getAttributes());
+            android.view.WindowManager.LayoutParams hidden = new android.view.WindowManager.LayoutParams(); hidden.copyFrom(before);
+            hidden.alpha = 0f;
+            hidden.flags |= android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+            activity.getWindow().setAttributes(hidden);
+            Runnable restore = () -> {
+                screenControlBusy = false;
+                if (!activity.isDestroyed()) activity.getWindow().setAttributes(before);
+            };
+            Handler handler = new Handler(Looper.getMainLooper());
+            handler.postDelayed(() -> {
+                if (activity.isFinishing() || activity.isDestroyed() || TophAccessibilityService.connected != service) { restore.run(); call.reject("Sessão interrompida. Nenhuma ação nova foi iniciada."); return; }
+                try {
+                    if (!execute) { JSObject observed = service.observe(); restore.run(); call.resolve(observed); return; }
+                    JSObject result = service.act(call.getString("token", ""), call.getString("target", ""), call.getString("action", ""), call.getString("text", ""));
+                    handler.postDelayed(() -> {
+                        try {
+                            JSObject after = service.observe();
+                            result.put("after", after);
+                            result.put("changed", !after.getString("fingerprint").equals(result.getString("before")));
+                        } catch (Exception e) { result.put("verificationError", e.getMessage()); }
+                        finally { restore.run(); }
+                        call.resolve(result);
+                    }, 900);
+                } catch (Exception e) { restore.run(); call.reject(e.getMessage() == null ? "A etapa falhou." : e.getMessage()); }
+            }, 250);
+        });
+    }
+    @PluginMethod public void observeInterface(PluginCall call) { withExternalScreen(call, false); }
+    @PluginMethod public void executeInterfaceAction(PluginCall call) { withExternalScreen(call, true); }
 
     private boolean screenReading;
 

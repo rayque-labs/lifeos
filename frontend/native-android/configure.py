@@ -70,11 +70,16 @@ for action in ("android.intent.action.TTS_SERVICE", "android.speech.RecognitionS
 
 update_element(app, "service", ".ScreenReadingService", exported="false", foregroundServiceType="mediaProjection")
 
-legacy_controls = app.find(f"service[@{{{ANDROID}}}name='.TophAccessibilityService']")
-if legacy_controls is not None:
-    app.remove(legacy_controls)
+control = update_element(app, "service", ".TophAccessibilityService", exported="true",
+    permission="android.permission.BIND_ACCESSIBILITY_SERVICE", label="Toph · Execução assistida")
+if control.find("intent-filter") is None:
+    update_element(ET.SubElement(control, "intent-filter"), "action", "android.accessibilityservice.AccessibilityService")
+update_element(control, "meta-data", "android.accessibilityservice", resource="@xml/toph_accessibility")
+(root / "res/xml").mkdir(parents=True, exist_ok=True)
+shutil.copyfile(Path(__file__).parent / "toph_accessibility.xml", root / "res/xml/toph_accessibility.xml")
+(root / "res/values/toph_control.xml").write_text('<?xml version="1.0" encoding="utf-8"?><resources><string name="toph_control_description">Permite ler controles e executar toques, rolagem e digitação que você revisar no painel da Toph. Não coleta telas em segundo plano. A análise por IA envia os textos observados ao provedor escolhido após seu comando. Desative este serviço quando quiser nas configurações de Acessibilidade.</string></resources>', encoding="utf-8")
 
-for package in ("com.whatsapp", "com.whatsapp.w4b", "com.android.chrome", "com.instagram.android", "com.facebook.katana", "com.facebook.lite",
+for package in ("com.whatsapp", "com.whatsapp.w4b", "com.android.chrome", "com.instagram.android", "com.facebook.katana", "com.facebook.lite", "com.spotify.music",
                 "com.google.android.calendar", "com.google.android.calculator", "com.google.android.keep"):
     update_element(queries, "package", package)
 
@@ -95,9 +100,6 @@ tree.write(manifest, encoding="utf-8", xml_declaration=True)
 package_path = root / "java/com/rayquelabs/lifeos"
 native = Path(__file__).parent
 for source in native.glob("*.java"):
-    if source.name == "TophAccessibilityService.java":
-        (package_path / source.name).unlink(missing_ok=True)
-        continue
     shutil.copyfile(source, package_path / source.name)
 for style in ("overlay_styles.xml", "launch_styles.xml"):
     shutil.copyfile(native / style, root / "res/values" / f"lifeos_{style}")

@@ -5,8 +5,8 @@ import { bankSnapshot, loadConnection } from './mobile-integrations'
 import type { Task } from './types'
 
 type DeviceControl = Parameters<typeof nativeAssistant.controlDevice>[0]
-export type AssistantAction = { kind: 'web-search'; query: string } | { kind: 'photos-review' } | FileAction | { kind: 'whatsapp-send'; phone: string; text: string } | { kind: 'create-task'; title: string } | { kind: 'list-tasks' } | { kind: 'device'; control: DeviceControl } | { kind: 'bank-balances' } | { kind: 'screen' }
-const controlledApps = 'whatsapp|chrome|agenda|calculadora|keep|instagram'
+export type AssistantAction = { kind: 'screen-task'; goal: string } | { kind: 'web-search'; query: string } | { kind: 'photos-review' } | FileAction | { kind: 'whatsapp-send'; phone: string; text: string } | { kind: 'create-task'; title: string } | { kind: 'list-tasks' } | { kind: 'device'; control: DeviceControl } | { kind: 'bank-balances' } | { kind: 'screen' }
+const controlledApps = 'whatsapp|chrome|agenda|calculadora|keep|instagram|facebook|spotify'
 const apps = `${controlledApps}|facebook`
 const openApp = new RegExp(`^abr(?:ir|a|e) (?:o |a )?(?:aplicativo (?:do |da )?)?(${apps})[.!?]?$`, 'i')
 const scrollApp = new RegExp(`^rola(?:r)?(?: para)? (cima|baixo) n[oa] (${controlledApps})[.!]?$`, 'i')
@@ -36,17 +36,18 @@ export function parseAssistantAction(input: string): AssistantAction | null {
   const open = spoken.match(openApp)
   if (open) return { kind: 'device', control: { action: 'open', app: open[1].toLowerCase() } }
   const scroll = input.match(scrollApp)
-  if (scroll) return { kind: 'device', control: { action: scroll[1].toLowerCase() === 'cima' ? 'up' : 'down', app: scroll[2].toLowerCase() } }
+  if (scroll) return { kind: 'screen-task', goal: spoken }
   const type = input.match(typeApp)
-  if (type) return { kind: 'device', control: { action: 'type', text: type[1], app: type[2].toLowerCase() } }
+  if (type) return { kind: 'screen-task', goal: spoken }
   const tap = input.match(tapApp)
-  if (tap) return { kind: 'device', control: { action: 'tap', x: Number(tap[1]), y: Number(tap[2]), app: tap[3].toLowerCase() } }
+  if (tap) return { kind: 'screen-task', goal: spoken }
   const click = input.match(clickApp)
-  if (click) return { kind: 'device', control: { action: 'click', text: click[1], app: click[2].toLowerCase() } }
+  if (click) return { kind: 'screen-task', goal: spoken }
   return null
 }
 
 export async function executeAssistantAction(action: AssistantAction, user?: string) {
+  if (action.kind === 'screen-task') throw new Error('Use Executar na tela no painel flutuante da Toph.')
   if (action.kind === 'web-search') throw new Error('A pesquisa precisa passar pelo provedor conectado no chat.')
   if (action.kind === 'photos-review') throw new Error('Abra o painel Fotos duplicadas para analisar e revisar.')
   if (action.kind === 'files' || action.kind === 'whatsapp-send') throw new Error('Esta ação precisa passar pelo executor com prévia.')
